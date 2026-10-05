@@ -178,6 +178,11 @@ The data folder follows the XDG directories (`~/.config/codenotch`), and provide
 found at their Linux paths: `~/.claude`, `~/.codex`, `~/.grok`,
 `~/.config/Cursor/User/globalStorage/state.vscdb`.
 
+**COSMIC / XWayland (Pop!_OS 24.04):** the compositor centres ordinary X11 windows and ignores the
+position they ask for, and Tauri's cursor query goes stale once the pointer leaves an X11 window.
+The notch window is therefore override-redirect, its input is shaped to the pill and card, and
+enter/leave comes from GTK rather than a polled cursor. Dragging the pill is untested here.
+
 What does not work yet, and degrades quietly rather than misbehaving:
 
 | Feature | Why |
