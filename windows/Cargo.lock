@@ -510,6 +510,7 @@ version = "1.21.0"
 dependencies = [
  "chrono",
  "dirs 5.0.1",
+ "gtk",
  "native-tls",
  "notify",
  "png 0.17.16",

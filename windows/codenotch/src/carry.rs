@@ -283,7 +283,7 @@ fn run(app: &AppHandle, shape: serde_json::Value) {
     let (Some(start), Some(notch)) = (crate::target_screen(app), app.get_webview_window("notch")) else {
         return;
     };
-    let (Ok(pos), Ok(win), Ok(cur)) = (notch.outer_position(), notch.outer_size(), app.cursor_position()) else {
+    let (Ok(pos), Ok(win), Ok(cur)) = (notch.outer_position(), notch.outer_size(), crate::cursor_pos(app).ok_or(())) else {
         return;
     };
     let from = Edge::parse(&{
@@ -324,7 +324,7 @@ fn run(app: &AppHandle, shape: serde_json::Value) {
     let all = crate::screens(app);
     let mut last = middle;
     while crate::left_button_down() {
-        if let Ok(cur) = app.cursor_position() {
+        if let Some(cur) = crate::cursor_pos(app) {
             if let Some(s) = crate::screen_at(&all, cur.x, cur.y)
                 .filter(|s| !crate::same_screen(s, &mon) && beyond(&mon, cur.x, cur.y) / s.scale >= CROSS)
             {
@@ -439,11 +439,17 @@ fn show(app: &AppHandle, screen: &crate::Screen) {
         .skip_taskbar(true)
         .focused(false)
         .focusable(false)
+        .visible(!cfg!(target_os = "linux"))
         .resizable(false)
         .theme(crate::theme_choice(app))
         .initialization_script(crate::theme_script(crate::resolved_theme(app)));
     match builder.build() {
         Ok(w) => {
+            if cfg!(target_os = "linux") {
+                // Override-redirect before the first map, or the compositor centres it (see `topmost`)
+                crate::topmost::pin_to_screen_edge(&w);
+                let _ = w.show();
+            }
             pin(&w, screen);
             let _ = w.set_ignore_cursor_events(true);
         }

@@ -213,3 +213,93 @@ pub fn start_watchdog(app: AppHandle) {
 
 #[cfg(not(windows))]
 pub fn start_watchdog(_app: AppHandle) {}
+
+/// Linux: lets the notch be placed on a screen edge under XWayland.
+///
+/// A compositor manages ordinary X11 windows and ignores the position they ask for (COSMIC centres
+/// them), so the pill landed mid-screen. An override-redirect window is outside the window
+/// manager's control and keeps the coordinates `set_position` gives it. It has to be set after the
+/// GdkWindow exists and before the window is first mapped. Under a native Wayland session the
+/// call is skipped (`run-linux.sh` forces X11, since Wayland clients cannot place themselves).
+#[cfg(target_os = "linux")]
+pub fn pin_to_screen_edge(window: &WebviewWindow) {
+    use gtk::prelude::*;
+    let Ok(gtk_window) = window.gtk_window() else { return };
+    if !gtk_window.display().type_().name().contains("X11") {
+        return;
+    }
+    gtk_window.realize();
+    if let Some(gdk_window) = gtk_window.window() {
+        gdk_window.set_override_redirect(true);
+    }
+    // The page gets no mouseout under XWayland when the pointer leaves, so the window's own
+    // crossing events are passed on as the same `notch_pointer` event the Windows watchdog sends.
+    // Crossings into the page's child widgets (`Inferior`/`Virtual`) are not the pointer leaving.
+    use gtk::gdk::{EventMask, NotifyType};
+    gtk_window.add_events(EventMask::ENTER_NOTIFY_MASK | EventMask::LEAVE_NOTIFY_MASK);
+    let notch = window.clone();
+    gtk_window.connect_leave_notify_event(move |_, ev| {
+        let detail = ev.detail();
+        crate::applog(&format!("gtk leave-notify detail={detail:?}"));
+        if !matches!(detail, NotifyType::Inferior) {
+            let _ = tauri::Emitter::emit_to(&notch, "notch", "notch_pointer", false);
+        }
+        gtk::glib::Propagation::Proceed
+    });
+    let notch = window.clone();
+    gtk_window.connect_enter_notify_event(move |_, ev| {
+        crate::applog(&format!("gtk enter-notify detail={:?}", ev.detail()));
+        let _ = tauri::Emitter::emit_to(&notch, "notch", "notch_pointer", true);
+        gtk::glib::Propagation::Proceed
+    });
+}
+
+#[cfg(not(target_os = "linux"))]
+pub fn pin_to_screen_edge(_window: &WebviewWindow) {}
+
+/// Linux: restricts where the notch window takes the pointer to the page's hot rectangles
+/// (physical pixels, relative to the window). The window is mostly transparent and sized for the
+/// hover card, so without this it would swallow clicks meant for whatever is behind it.
+#[cfg(target_os = "linux")]
+pub fn shape_input(app: &AppHandle, rects: &[[f64; 4]]) {
+    use gtk::cairo::{RectangleInt, Region};
+    use gtk::prelude::*;
+    let Some(w) = app.get_webview_window("notch") else { return };
+    let rects = rects.to_vec();
+    let _ = app.run_on_main_thread(move || {
+        let Ok(gtk_window) = w.gtk_window() else { return };
+        let Some(gdk_window) = gtk_window.window() else { return };
+        let scale = f64::from(gtk_window.scale_factor().max(1));
+        let region = Region::create();
+        for r in &rects {
+            let (x, y) = ((r[0] / scale).floor() as i32 - 2, (r[1] / scale).floor() as i32 - 2);
+            let (cw, ch) = ((r[2] / scale).ceil() as i32 + 4, (r[3] / scale).ceil() as i32 + 4);
+            let _ = region.union_rectangle(&RectangleInt::new(x.max(0), y.max(0), cw, ch));
+        }
+        gdk_window.input_shape_combine_region(&region, 0, 0);
+    });
+}
+
+#[cfg(not(target_os = "linux"))]
+pub fn shape_input(_app: &AppHandle, _rects: &[[f64; 4]]) {}
+
+/// Linux: the pointer's place on the screen and whether the left button is down. GDK has to be
+/// asked from the main thread, so the drag loop's thread hands the question over and waits.
+#[cfg(target_os = "linux")]
+pub fn pointer(app: &AppHandle) -> Option<(f64, f64, bool)> {
+    use gtk::gdk;
+    use gtk::prelude::*;
+    let (tx, rx) = std::sync::mpsc::channel();
+    app.run_on_main_thread(move || {
+        let read = || {
+            let display = gdk::Display::default()?;
+            let pointer = display.default_seat()?.pointer()?;
+            let root = display.default_screen().root_window()?;
+            let (_, x, y, mask) = root.device_position(&pointer);
+            Some((x as f64, y as f64, mask.contains(gdk::ModifierType::BUTTON1_MASK)))
+        };
+        let _ = tx.send(read());
+    })
+    .ok()?;
+    rx.recv_timeout(std::time::Duration::from_millis(100)).ok().flatten()
+}

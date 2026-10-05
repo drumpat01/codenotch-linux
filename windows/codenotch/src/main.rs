@@ -438,9 +438,34 @@ fn left_button_down() -> bool {
     use windows::Win32::UI::Input::KeyboardAndMouse::{GetAsyncKeyState, VK_LBUTTON};
     unsafe { (GetAsyncKeyState(VK_LBUTTON.0 as i32) as u16 & 0x8000) != 0 }
 }
-#[cfg(not(windows))]
+#[cfg(target_os = "linux")]
+fn left_button_down() -> bool {
+    topmost::pointer(&app_handle()).map(|(_, _, down)| down).unwrap_or(false)
+}
+#[cfg(not(any(windows, target_os = "linux")))]
 fn left_button_down() -> bool {
     false
+}
+
+/// The AppHandle for the free functions that have none to hand (Linux's button query).
+static APP_HANDLE: std::sync::OnceLock<AppHandle> = std::sync::OnceLock::new();
+#[cfg(target_os = "linux")]
+fn app_handle() -> AppHandle {
+    APP_HANDLE.get().expect("set in setup").clone()
+}
+
+/// The pointer in physical screen pixels. On Linux the system cursor is read through GDK, which
+/// keeps reporting while a button is held (the window has the implicit grab); Tauri's own
+/// `cursor_position` goes stale under XWayland the moment the pointer leaves an X11 window.
+pub(crate) fn cursor_pos(app: &AppHandle) -> Option<tauri::PhysicalPosition<f64>> {
+    #[cfg(target_os = "linux")]
+    {
+        topmost::pointer(app).map(|(x, y, _)| tauri::PhysicalPosition::new(x, y))
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        app.cursor_position().ok()
+    }
 }
 
 pub fn place_bar(app: &AppHandle) {
@@ -641,7 +666,8 @@ static HOT: Mutex<Vec<[f64; 4]>> = Mutex::new(Vec::new());
 static EXPANDED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
 #[tauri::command]
-fn set_hot(rects: Vec<[f64; 4]>, expanded: bool, probe: Option<[f64; 4]>) {
+fn set_hot(app: AppHandle, rects: Vec<[f64; 4]>, expanded: bool, probe: Option<[f64; 4]>) {
+    topmost::shape_input(&app, &rects);
     *HOT.lock().unwrap() = rects;
     backdrop::set_probe(probe);
     EXPANDED.store(expanded, std::sync::atomic::Ordering::Relaxed);
@@ -804,6 +830,12 @@ const LEAVE_MS: u64 = 300;
 /// gets no mousemove out there and cannot see the pointer arriving. This loop does, and hands the
 /// window its input back in time for the page to open the card.
 fn start_pointer_watchdog(app: AppHandle) {
+    // Linux/XWayland only reports the pointer while it is over an X11 window, so this poll goes
+    // stale the moment the cursor leaves the notch and would leave it click-through for good. The
+    // window's input shape (`topmost::shape_input`) and the page's own mouse events do the job.
+    if cfg!(target_os = "linux") {
+        return;
+    }
     std::thread::spawn(move || {
         let need = (LEAVE_MS / WATCHDOG_MS).max(1) as u8;
         let mut miss = 0u8;
@@ -1866,12 +1898,15 @@ fn main() {
         ])
         .setup(move |app| {
             let handle = app.handle().clone();
+            let _ = APP_HANDLE.set(handle.clone());
             place_notch(&handle);
             // Before the notch is shown: a window shown on the system appearance and corrected
             // after paints the wrong one for a frame, which is a black flash under a light choice
             apply_theme(&handle);
             if let Some(w) = handle.get_webview_window("notch") {
+                topmost::pin_to_screen_edge(&w);
                 let _ = w.show();
+                place_notch(&handle);
             }
             tray::setup(&handle)?;
             notchmenu::setup(&handle);

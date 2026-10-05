@@ -1512,6 +1512,7 @@ listen('notch_reveal',()=>{
   }
 }).catch(()=>{});
 
+const IS_LINUX=/Linux/.test(navigator.userAgent);
 /* Collapse test: no trust in element-level mouseenter/mouseleave/e.target at all —
    pure geometry: is the cursor (clientX/Y) inside pill rect ∪ card rect ∪ their bounding box?
    Leaving the window: document mouseout (relatedTarget=null) plus the Rust watchdog (system cursor) as a second line. */
@@ -1533,6 +1534,8 @@ let hideLogged=0;
 document.addEventListener('mousemove',e=>{
   // Folded, the page is sent events only over the pill, so any movement at all is the pointer reaching it
   if(folded){ pointerIn=true; unfold(); }
+  // Linux has no Rust cursor watchdog (XWayland hides the pointer once it leaves an X window), so the page tracks it
+  if(IS_LINUX) pointerIn=true;
   if(dragging)return; // no card while dragging
   setHovered(onHandle(e.clientX,e.clientY));
   if(hovered){ if(card.classList.contains('show')){ clearTimeout(hideTimer); hideCard(); } return; }
@@ -1546,6 +1549,7 @@ document.addEventListener('mousemove',e=>{
   else if(card.classList.contains('show')){ if(hideLogged++<5) jslog(`mousemove left the hot area -> collapse at ${e.clientX},${e.clientY}`); scheduleHide(); }
 });
 document.addEventListener('mouseout',e=>{ // relatedTarget null = the cursor left the page
+  if(IS_LINUX && !e.relatedTarget && !dragging){ pointerIn=false; setHovered(null); scheduleFold(); }
   if(!e.relatedTarget && card.classList.contains('show')){ if(hideLogged++<5) jslog('mouseout left the page -> collapse'); scheduleHide(); }
 });
 listen('pointer_left',()=>{clearTimeout(hideTimer);hideCard();}).catch(()=>{});
