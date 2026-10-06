@@ -1754,6 +1754,16 @@ fn adopt_system_proxy() {
 }
 
 fn main() {
+    // A Wayland client cannot place its own window, and the notch has to sit on a screen edge, so on
+    // Linux it runs as an X11 client under XWayland whichever way it was started (the autostart
+    // entry runs the binary directly, without `scripts/run-linux.sh`). An explicit choice wins.
+    #[cfg(target_os = "linux")]
+    if std::env::var_os("GDK_BACKEND").is_none()
+        && std::env::var_os("DISPLAY").is_some()
+        && std::env::var_os("WAYLAND_DISPLAY").is_some()
+    {
+        std::env::set_var("GDK_BACKEND", "x11");
+    }
     #[cfg(windows)]
     adopt_system_proxy();
     let args: Vec<String> = std::env::args().collect();
