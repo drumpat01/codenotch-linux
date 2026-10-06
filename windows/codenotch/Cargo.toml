@@ -48,4 +48,5 @@ windows = { version = "0.58", features = [
 ] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
+gtk-layer-shell = { version = "0.8", features = ["v0_6"] } # Wayland: anchors the notch to a screen edge (wlr-layer-shell), which a client cannot do by moving its own window
 gtk = "0.18" # same major Tauri's GTK backend uses; needed to reach the GdkWindow for override-redirect

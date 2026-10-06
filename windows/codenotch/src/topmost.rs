@@ -225,7 +225,35 @@ pub fn start_watchdog(_app: AppHandle) {}
 pub fn pin_to_screen_edge(window: &WebviewWindow) {
     use gtk::prelude::*;
     let Ok(gtk_window) = window.gtk_window() else { return };
-    if !gtk_window.display().type_().name().contains("X11") {
+    let on_x11 = gtk_window.display().type_().name().contains("X11");
+    if !on_x11 {
+        // Native Wayland: a client cannot place its own window, but a layer-shell surface can be
+        // anchored to the screen. Where the compositor has no layer shell (GNOME), start over as an
+        // X11 client under XWayland, which is what the override-redirect path below is for.
+        use gtk_layer_shell::{Edge, KeyboardMode, Layer, LayerShell};
+        if !gtk_layer_shell::is_supported() {
+            crate::applog("no layer-shell here: restarting under XWayland");
+            use std::os::unix::process::CommandExt;
+            if let Ok(exe) = std::env::current_exe() {
+                let err = std::process::Command::new(exe)
+                    .args(std::env::args_os().skip(1))
+                    .env("GDK_BACKEND", "x11")
+                    .exec();
+                crate::applog(&format!("re-exec failed: {err}"));
+            }
+            return;
+        }
+        // Layer-shell has to be set up before the window is first realized
+        gtk_window.unrealize();
+        gtk_window.init_layer_shell();
+        gtk_window.set_namespace("codenotch");
+        gtk_window.set_layer(Layer::Overlay);
+        gtk_window.set_keyboard_mode(KeyboardMode::None);
+        gtk_window.set_exclusive_zone(-1);
+        // Anchored top-left and moved by margins, so any edge or corner is just a pair of numbers
+        gtk_window.set_anchor(Edge::Top, true);
+        gtk_window.set_anchor(Edge::Left, true);
+        LAYER.store(true, std::sync::atomic::Ordering::Relaxed);
         return;
     }
     gtk_window.realize();
@@ -253,6 +281,30 @@ pub fn pin_to_screen_edge(window: &WebviewWindow) {
         gtk::glib::Propagation::Proceed
     });
 }
+
+/// True once the notch is a layer-shell surface (native Wayland), where it is placed by margins.
+#[cfg(target_os = "linux")]
+static LAYER: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// Linux/Wayland: put the notch `x`,`y` physical pixels from its monitor's top-left corner.
+#[cfg(target_os = "linux")]
+pub fn place_layer(window: &WebviewWindow, x: i32, y: i32) {
+    use gtk::prelude::*;
+    use gtk_layer_shell::{Edge, LayerShell};
+    if !LAYER.load(std::sync::atomic::Ordering::Relaxed) {
+        return;
+    }
+    let w = window.clone();
+    let _ = window.run_on_main_thread(move || {
+        let Ok(gtk_window) = w.gtk_window() else { return };
+        let scale = gtk_window.scale_factor().max(1);
+        gtk_window.set_layer_shell_margin(Edge::Left, x.max(0) / scale);
+        gtk_window.set_layer_shell_margin(Edge::Top, y.max(0) / scale);
+    });
+}
+
+#[cfg(not(target_os = "linux"))]
+pub fn place_layer(_window: &WebviewWindow, _x: i32, _y: i32) {}
 
 #[cfg(not(target_os = "linux"))]
 pub fn pin_to_screen_edge(_window: &WebviewWindow) {}

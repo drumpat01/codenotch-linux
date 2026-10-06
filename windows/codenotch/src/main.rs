@@ -343,6 +343,7 @@ pub fn place_notch(app: &AppHandle) {
             let _ = w.set_position(tauri::PhysicalPosition::new(x, y));
             placed = (x, y, target.width as i32, target.height as i32);
         }
+        topmost::place_layer(&w, placed.0 - mon.x, placed.1 - mon.y);
         // The page mirrors itself for the edge it is on; it cannot know that on its own.
         let _ = w.emit("notch_edge", &edge);
         // Nor can it see the taskbar: a card opened near the bottom of a side edge slid under it.
@@ -1754,14 +1755,10 @@ fn adopt_system_proxy() {
 }
 
 fn main() {
-    // A Wayland client cannot place its own window, and the notch has to sit on a screen edge, so on
-    // Linux it runs as an X11 client under XWayland whichever way it was started (the autostart
-    // entry runs the binary directly, without `scripts/run-linux.sh`). An explicit choice wins.
+    // On Wayland the notch is a layer-shell surface (see `topmost::pin_to_screen_edge`), and falls
+    // back to XWayland by itself where there is no layer shell. CODENOTCH_X11=1 asks for XWayland.
     #[cfg(target_os = "linux")]
-    if std::env::var_os("GDK_BACKEND").is_none()
-        && std::env::var_os("DISPLAY").is_some()
-        && std::env::var_os("WAYLAND_DISPLAY").is_some()
-    {
+    if std::env::var_os("CODENOTCH_X11").is_some() && std::env::var_os("GDK_BACKEND").is_none() {
         std::env::set_var("GDK_BACKEND", "x11");
     }
     #[cfg(windows)]

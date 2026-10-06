@@ -158,7 +158,7 @@ and the rest of the port is portable Rust. Prerequisites on a Debian or Ubuntu m
 
 ```sh
 sudo apt install build-essential pkg-config libssl-dev libwebkit2gtk-4.1-dev \
-                 libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev
+                 libgtk-3-dev libgtk-layer-shell-dev libayatana-appindicator3-dev librsvg2-dev
 cargo build --release -p codenotch
 ./scripts/run-linux.sh          # pill appears on the right edge
 ./scripts/run-linux.sh doctor   # self-diagnosis, same as on Windows
@@ -178,10 +178,12 @@ The data folder follows the XDG directories (`~/.config/codenotch`), and provide
 found at their Linux paths: `~/.claude`, `~/.codex`, `~/.grok`,
 `~/.config/Cursor/User/globalStorage/state.vscdb`.
 
-**COSMIC / XWayland (Pop!_OS 24.04):** the compositor centres ordinary X11 windows and ignores the
-position they ask for, and Tauri's cursor query goes stale once the pointer leaves an X11 window.
-The notch window is therefore override-redirect, its input is shaped to the pill and card, and
-enter/leave comes from GTK rather than a polled cursor. Dragging the pill is untested here.
+**Wayland (tested on Pop!_OS 24.04 / COSMIC):** the notch runs natively as a `wlr-layer-shell`
+overlay anchored to the screen and placed with margins, so it needs `libgtk-layer-shell-dev` to
+build. Its input is shaped to the pill and card, and enter/leave comes from GTK. Where the
+compositor has no layer shell (GNOME) it restarts itself as an X11 client under XWayland, where the
+window is override-redirect so the compositor cannot centre it. `CODENOTCH_X11=1` forces XWayland.
+Dragging the pill is untested.
 
 What does not work yet, and degrades quietly rather than misbehaving:
 
