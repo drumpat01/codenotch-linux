@@ -1,0 +1,14 @@
+{
+  "monitor": "",
+  "expandedWidth": 560,
+  "expandedHeight": 300,
+  "timerMinutes": 25,
+  "terminal": ["xdg-terminal-exec"],
+  "editor": ["nvim"],
+  "githubRefreshMinutes": 30,
+  "projects": [
+    { "name": "dotfiles", "path": "~/.config" },
+    { "name": "code", "path": "~/code" }
+  ],
+  "colors": { "bg": "#14161b", "fg": "#e6e8ee", "dim": "#8a90a0", "accent": "#7aa2f7", "surface": "#1e2128" }
+}
