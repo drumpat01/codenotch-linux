@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Layouts
 
 // 56px top bar: logo chip, nav pills, Edit, system readouts, bell, gear, Close.
 Item {
@@ -21,12 +22,14 @@ Item {
     ]
     readonly property var v: app.sys.v
 
-    component Readout: Row {
+    // The right-hand group is a RowLayout: children of a Row/Column positioner must not use vertical anchors
+    // (Qt logs "scene: QML Row ... Cannot specify top, bottom, verticalCenter, fill or centerIn anchors").
+    component Readout: RowLayout {
         property string icon
         property string text
-        spacing: 5; anchors.verticalCenter: parent.verticalCenter
-        Icon { anchors.verticalCenter: parent.verticalCenter; name: parent.icon; size: 14; color: Theme.dim }
-        Text { anchors.verticalCenter: parent.verticalCenter; text: parent.text; color: Theme.text; font.pixelSize: 13; font.family: Theme.sans }
+        spacing: 5; Layout.alignment: Qt.AlignVCenter
+        Icon { Layout.alignment: Qt.AlignVCenter; name: parent.icon; size: 14; color: Theme.dim }
+        Text { Layout.alignment: Qt.AlignVCenter; text: parent.text; color: Theme.text; font.pixelSize: 13; font.family: Theme.sans }
     }
 
     // Clicking empty bar space pins / unpins the notch.
@@ -56,26 +59,27 @@ Item {
         }
     }
 
-    Row {
+    RowLayout {
         anchors.right: parent.right; anchors.rightMargin: 18; anchors.verticalCenter: parent.verticalCenter; spacing: 18
         // Edit layout
-        Row { spacing: 6; anchors.verticalCenter: parent.verticalCenter
-            Icon { name: "layout-grid"; size: 14; color: bar.editing ? Theme.phos : Theme.dim; anchors.verticalCenter: parent.verticalCenter }
-            Text { text: bar.editing ? "Done" : "Edit"; color: bar.editing ? Theme.phos : Theme.text; font.pixelSize: 13; font.family: Theme.sans; anchors.verticalCenter: parent.verticalCenter }
+        Item { Layout.preferredWidth: editRow.implicitWidth; Layout.preferredHeight: editRow.implicitHeight; Layout.alignment: Qt.AlignVCenter
+            RowLayout { id: editRow; spacing: 6
+                Icon { name: "layout-grid"; size: 14; color: bar.editing ? Theme.phos : Theme.dim; Layout.alignment: Qt.AlignVCenter }
+                Text { text: bar.editing ? "Done" : "Edit"; color: bar.editing ? Theme.phos : Theme.text; font.pixelSize: 13; font.family: Theme.sans; Layout.alignment: Qt.AlignVCenter } }
             MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: bar.editToggled() } }
         Readout { icon: "cpu"; text: bar.v.cpu + "%" }
         Readout { icon: "memory"; text: bar.v.ramUsed.toFixed(1) + "/" + Math.round(bar.v.ramTotal) + " GB" }
         Readout { icon: "net"; text: bar.v.net.toFixed(bar.v.net < 10 ? 1 : 0) + " MB/s" }
         Readout { visible: bar.v.bat >= 0; icon: bar.v.charging ? "zap" : "battery"; text: bar.v.bat + "%" }
         // Bell
-        Item { width: 20; height: 24; anchors.verticalCenter: parent.verticalCenter
+        Item { Layout.preferredWidth: 20; Layout.preferredHeight: 24; Layout.alignment: Qt.AlignVCenter
             Icon { anchors.centerIn: parent; name: "bell"; size: 16; color: Theme.text }
             Rectangle { visible: bar.app.unread > 0; x: 12; y: 0; width: 8; height: 8; radius: 4; color: Theme.phos }
             MouseArea { anchors.fill: parent; anchors.margins: -5; cursorShape: Qt.PointingHandCursor
                 onClicked: { bar.bellOpen = !bar.bellOpen; bar.app.unread = 0; } } }
-        Icon { anchors.verticalCenter: parent.verticalCenter; name: "settings"; size: 17; color: Theme.text
+        Icon { Layout.alignment: Qt.AlignVCenter; name: "settings"; size: 17; color: Theme.text
             MouseArea { anchors.fill: parent; anchors.margins: -5; cursorShape: Qt.PointingHandCursor; onClicked: bar.app.page = bar.app.page === "settings" ? "home" : "settings" } }
-        Text { anchors.verticalCenter: parent.verticalCenter; text: "Close"; color: "#fff"; font.pixelSize: 13; font.family: Theme.sans; font.weight: Font.DemiBold
+        Text { Layout.alignment: Qt.AlignVCenter; text: "Close"; color: "#fff"; font.pixelSize: 13; font.family: Theme.sans; font.weight: Font.DemiBold
             MouseArea { anchors.fill: parent; anchors.margins: -6; cursorShape: Qt.PointingHandCursor; onClicked: bar.closeRequested() } }
     }
 }

@@ -41,6 +41,20 @@ DrawerBase {
                 Hint { width: parent.width; text: "The bar opens when the pointer enters it. Click the bar to pin it open." }
                 Toggle { label: "Short notch"; checked: d.cfg.shortNotch; onFlipped: d.app.setCfg("shortNotch", !d.cfg.shortNotch) }
                 Toggle { label: "Reduce animation"; checked: d.cfg.reduceMotion; onFlipped: d.app.setCfg("reduceMotion", !d.cfg.reduceMotion) }
+                Section { text: "Placement" }
+                Row { spacing: 6
+                    Btn { label: "Offset"; pixelSize: 11; implicitHeight: 26; active: d.cfg.placement === "offset"; onClicked: d.app.setCfg("placement", "offset") }
+                    Btn { label: "Pill on bar"; pixelSize: 11; implicitHeight: 26; active: d.cfg.placement === "pill"; onClicked: d.app.setCfg("placement", "pill") } }
+                Hint { width: parent.width
+                    text: d.cfg.placement === "pill" ? "A small pill over the bar shows a live hint and opens downward on hover or " + d.cfg.toggleHint + "."
+                                                     : "The collapsed notch hangs below the bar, off centre, so it never covers the clock." }
+                Row { visible: d.cfg.placement === "offset"; spacing: 6
+                    Btn { label: "Left"; pixelSize: 11; implicitHeight: 26; active: d.cfg.offsetSide === "left"; onClicked: d.app.setCfg("offsetSide", "left") }
+                    Btn { label: "Right"; pixelSize: 11; implicitHeight: 26; active: d.cfg.offsetSide === "right"; onClicked: d.app.setCfg("offsetSide", "right") } }
+                Field { visible: d.cfg.placement === "offset"; width: parent.width; placeholder: "Distance from screen centre in px (Enter)"; text: String(d.cfg.offsetX)
+                    onAccepted: d.setNumber("offsetX", text) }
+                Field { visible: d.cfg.placement === "pill"; width: parent.width; placeholder: "Pill x from centre in px, negative = left (Enter)"; text: String(d.cfg.pillX)
+                    onAccepted: d.setNumber("pillX", text) }
                 Section { text: "Pomodoro style" }
                 Hint { width: parent.width; text: "This changes every timer card. Pick the style here." }
                 Flow { width: parent.width; spacing: 6
@@ -99,6 +113,10 @@ DrawerBase {
         }
     }
 
+    function setNumber(key, t) {
+        var n = Number(t.trim());
+        if (t.trim() !== "" && isFinite(n)) app.setCfg(key, Math.round(n));
+    }
     function setProvider(i, patch) {
         var list = cfg.usage.providers.map(function (p, j) { return j === i ? Object.assign({}, p, patch) : p; });
         app.cfgStore.mutate(function (c) { c.usage.providers = list; });

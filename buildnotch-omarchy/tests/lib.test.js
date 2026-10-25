@@ -10,7 +10,7 @@ const ctx = {};
 vm.createContext(ctx);
 vm.runInContext(src + "\nthis.Lib = { " +
     "normalizeCfg, normalizeData, normalizeWidgets, moveWidget, fmt, wordCount, relTime, formatJson, parseContributions, " +
-    "classifyClip, parseCliphist, clipMatches, parseSys, shouldHide, reservedTop, resizeRemaining, sourceBadge, matchAiApps, parseUsage, QUOTES, DEFAULT_CFG, expandHome };", ctx);
+    "classifyClip, parseCliphist, clipMatches, parseSys, shouldHide, reservedTop, collapsedLeft, pillHeight, lerp, resizeRemaining, sourceBadge, matchAiApps, parseUsage, QUOTES, DEFAULT_CFG, expandHome };", ctx);
 const L = ctx.Lib;
 
 // config
@@ -24,6 +24,27 @@ c = L.normalizeCfg({ widgets: [{ id: "note", visible: false }, { id: "nope" }, {
 deq(c.widgets.slice(0, 2).map(w => w.id), ["note", "music"]);
 assert.strictEqual(c.widgets[0].visible, false);
 assert.strictEqual(c.widgets.length, 9);
+
+// placement
+c = L.normalizeCfg({});
+assert.strictEqual(c.placement, "offset");
+c = L.normalizeCfg({ placement: "bogus", offsetSide: 3, offsetX: "x", pillX: null });
+assert.strictEqual(c.placement, "offset");
+assert.strictEqual(c.offsetSide, "left");
+assert.strictEqual(c.offsetX, 260);
+assert.strictEqual(c.pillX, -190);
+c = L.normalizeCfg({ placement: "pill", pillX: "-120", offsetX: -300, offsetSide: "right" });
+assert.strictEqual(c.pillX, -120);
+assert.strictEqual(c.offsetX, 300);
+assert.strictEqual(L.collapsedLeft({ placement: "pill", pillX: -190 }, 1920, 100), 720);
+assert.strictEqual(L.collapsedLeft({ placement: "offset", offsetSide: "right", offsetX: 300 }, 1920, 210), 1155);
+assert.strictEqual(L.collapsedLeft({ placement: "offset", offsetSide: "left", offsetX: 300 }, 1920, 210), 555);
+assert.strictEqual(L.collapsedLeft({ placement: "pill", pillX: -5000 }, 1920, 100), 8);
+assert.strictEqual(L.collapsedLeft({ placement: "pill", pillX: 5000 }, 1920, 100), 1812);
+assert.strictEqual(L.pillHeight(0), 20);
+assert.strictEqual(L.pillHeight(34), 24);
+assert.strictEqual(L.pillHeight(60), 26);
+assert.strictEqual(L.lerp(10, 20, 0.5), 15);
 
 // data
 const d = L.normalizeData({ projects: [{ name: "A", tasks: [{ text: "x", done: true }, { nope: 1 }] }], project: 9 });

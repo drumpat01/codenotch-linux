@@ -17,6 +17,10 @@
   "githubRefreshMinutes": 30,
   "toggleHint": "Super + Alt + N",
   "topOffset": -1,
+  "placement": "offset",
+  "offsetSide": "left",
+  "offsetX": 260,
+  "pillX": -190,
   "hideFullscreen": [
     "google-chrome",
     "chromium",

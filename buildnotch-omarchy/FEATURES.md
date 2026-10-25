@@ -17,7 +17,7 @@ there). `scripts/check.sh` runs the logic tests; the on-device test steps are in
 | # | Feature (as on buildnotch.app) | Linux implementation | Status |
 |---|---|---|---|
 | 1 | Notch at the top-centre of the screen, black, flush with the top edge, inverse-rounded bottom corners (`border-radius: 0 0 20px 20px`) | Quickshell `PanelWindow` on the wlr-layer-shell overlay layer, input mask limited to the notch body and its two concave corner ears; sits below any bar that reserves screen space (`topOffset` overrides) | Done |
-| 2 | Collapsed notch with a glance: clock (`10:42`), live focus countdown, now-playing bars | `Notch.qml` collapsed state | Done |
+| 2 | Collapsed notch with a glance: clock (`10:42`), live focus countdown, now-playing bars | `Notch.qml` collapsed state; the pill placement (11a) shows track title / timer instead of the clock | Done |
 | 3 | "Open on hover": bar opens when the pointer enters it, closes when it leaves | HoverHandler with open/close delays; toggle in Settings | Done |
 | 4 | "Click the bar to pin it open" | Click the bar to pin and unpin; Esc closes | Done |
 | 5 | Open/close animation (shell scale 0.96 to 1, width/height morph, content fade) | `NumberAnimation` with OutBack/OutCubic easing; collapsed scale 0.96 (`Theme.collapsedScale`) | Done |
@@ -27,6 +27,7 @@ there). `scripts/check.sh` runs the logic tests; the on-device test steps are in
 | 9 | Short notch (1.2.0): narrower collapsed notch, Settings, General | `shortNotch` setting | Done |
 | 10 | Fullscreen app rules (1.2.0): only Chrome hides the notch by default, per-app rules in Settings | Re-reads `hyprctl activewindow -j` only on Hyprland socket events (fullscreen, focus, workspace, close); default hides for Chrome/Chromium; per-class list in Settings | Adapted |
 | 11 | Multi-monitor / configurable screen placement | `monitor` config key, one notch per screen otherwise | Done |
+| 11a | Collapsed placement (not on the site; added for bars with a centred clock, Omarchy 4.x): `offset` hangs the collapsed notch below the bar, off centre (`offsetSide`, `offsetX`); `pill` overlays a small black pill the height of the bar icons on the bar (`pillX`, default just left of the clock) with a live hint (now playing, else timer). Both open to the centred panel and shrink back, animated from where they sit | One `t` progress value interpolates position, size and radius; full-width layer surface with an input mask on the visible body; Settings, General, Placement and `config.json` | Adapted |
 | 12 | Light/dark theme icons on the site (sun/moon) | The app itself is dark-only on the site; icons bundled, theme follows the dark palette | Partial |
 
 ## Top bar

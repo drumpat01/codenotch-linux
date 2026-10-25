@@ -21,10 +21,30 @@ PanelWindow {
     readonly property int maxW: 1080
     readonly property int bodyW: Math.min(maxW, screen.width - 32)
     readonly property int bodyH: Theme.barHeight + 8 + Theme.cardHeight + 16 + 34
-    readonly property int collW: cfg.shortNotch ? 150 : 210
-    readonly property int collH: 30
-    readonly property bool musicPlaying: Mpris.players.values.some(function (p) { return p.isPlaying; })
+    readonly property bool pill: cfg.placement === "pill"
+    readonly property int pillH: Lib.pillHeight(topInset)
+    readonly property int collH: pill ? pillH : 30
+    readonly property int collR: pill ? pillH / 2 : 14
+    readonly property var player: Mpris.players.values.filter(function (p) { return p.isPlaying; })[0] || null
+    readonly property bool musicPlaying: player !== null
     readonly property int anim: cfg.reduceMotion ? 0 : 380
+
+    // The pill is as wide as its hint; the offset notch keeps its fixed width.
+    property real pillW: Math.max(40, pillRow.implicitWidth + 22)
+    Behavior on pillW { NumberAnimation { duration: win.anim / 2; easing.type: Easing.OutCubic } }
+    readonly property real collW: pill ? pillW : (cfg.shortNotch ? 150 : 210)
+
+    // 0 = collapsed, 1 = open. Size, position and radius are all interpolated from it, so the notch
+    // opens from wherever it sits (off centre, or over the bar) and shrinks back to the same spot.
+    property real t: expanded ? 1 : 0
+    Behavior on t { NumberAnimation { duration: win.anim; easing.type: Easing.OutCubic } }
+    readonly property real collTop: pill ? ((topInset > 0 ? topInset : 30) - pillH) / 2 : topInset   // visible top edge when collapsed
+    readonly property real shellTop: Lib.lerp(collTop, topInset, t)
+    // The offset notch's top corners sit above its top edge (hidden behind the bar); the pill's do not until it opens.
+    readonly property real hideTop: pill ? shellR * t : shellR
+    readonly property real shellR: Lib.lerp(collR, Theme.shellRadius, t)
+    // Clip line: the open notch must not paint over the bar above it, the pill must.
+    readonly property real clipY: pill ? topInset * t : topInset
 
     // Space a bar (Waybar on Omarchy 3.x, Omarchy's own shell bar on 4.x) reserves at the top of this screen.
     // The notch hangs below it instead of covering it; `topOffset` in the config overrides the lookup.
@@ -46,9 +66,9 @@ PanelWindow {
     Component.onCompleted: barTimer.restart()
 
     // Concave "ears" where the notch meets the top edge, so it reads as one piece with the bezel.
-    property real earRad: expanded ? Theme.earRadius : Theme.earRadiusCollapsed
-    Behavior on earRad { NumberAnimation { duration: win.anim; easing.type: Easing.OutCubic } }
-    readonly property real shellScale: expanded ? 1 : Theme.collapsedScale
+    // The pill is a free-standing capsule, so it has none until it opens.
+    readonly property real earRad: Lib.lerp(pill ? 0 : Theme.earRadiusCollapsed, Theme.earRadius, t)
+    readonly property real shellScale: pill ? 1 : Lib.lerp(Theme.collapsedScale, 1, t)
 
     readonly property var cardWidths: ({ music: 340, pomodoro: 280, ai: 280, usage: 300, github: 300, projects: 320, quote: 280, apps: 280, note: 300 })
     readonly property var visibleIds: cfg.widgets.filter(function (w) { return w.visible; }).map(function (w) { return w.id; })
@@ -56,13 +76,13 @@ PanelWindow {
     readonly property int rowWidth: Math.max(0, slotX(visibleIds.length) - 14)
 
     visible: !app.fullscreen.hidden && (cfg.monitor === "" || screen.name === cfg.monitor)
-    anchors { top: true }
-    implicitWidth: maxW + 40
-    implicitHeight: bodyH + 24
+    // Full width and from the very top edge, so the collapsed notch can sit anywhere along the bar; input is
+    // limited to the notch body by the mask.
+    anchors { top: true; left: true; right: true }
+    implicitHeight: topInset + bodyH + 24
     color: "transparent"
     exclusionMode: ExclusionMode.Ignore
-    margins.top: topInset
-    mask: Region { item: shell; regions: [Region { item: earL }, Region { item: earR }] }
+    mask: Region { item: hit; regions: [Region { item: earL }, Region { item: earR }] }
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "buildnotch"
     WlrLayershell.keyboardFocus: expanded ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
@@ -100,15 +120,21 @@ PanelWindow {
         }
     }
 
+    // Everything is drawn inside `stage`, which starts at the clip line: below the bar for the open notch (so its
+    // hidden top corners never paint over the bar), at the screen edge for the pill.
+    Item {
+    id: stage
+    y: win.clipY; width: parent.width; height: parent.height - win.clipY; clip: true
+
     Rectangle {
         id: shell
-        anchors.horizontalCenter: parent.horizontalCenter
-        // The top corners sit above the screen edge, so only the bottom is rounded.
-        readonly property int r: win.expanded ? Theme.shellRadius : 14
-        y: -r
-        width: win.expanded ? win.bodyW : win.collW
-        height: (win.expanded ? win.bodyH : win.collH) + r
-        radius: r
+        // The offset notch's top corners sit above its top edge, so only the bottom is rounded.
+        readonly property real r: win.hideTop
+        x: Lib.lerp(Lib.collapsedLeft(win.cfg, win.screen.width, win.collW), (win.screen.width - win.bodyW) / 2, win.t)
+        y: win.shellTop - win.clipY - r
+        width: Lib.lerp(win.collW, win.bodyW, win.t)
+        height: Lib.lerp(win.collH, win.bodyH, win.t) + r
+        radius: win.shellR
         color: "#050708"
         border.width: 1
         border.color: Qt.rgba(1, 1, 1, win.expanded ? 0.1 : 0.06)
@@ -116,10 +142,8 @@ PanelWindow {
         scale: win.shellScale
         clip: true
 
-        Behavior on width { NumberAnimation { duration: win.anim; easing.type: Easing.OutBack; easing.overshoot: 0.4 } }
-        Behavior on height { NumberAnimation { duration: win.anim; easing.type: Easing.OutBack; easing.overshoot: 0.4 } }
-        Behavior on scale { NumberAnimation { duration: win.anim; easing.type: Easing.OutCubic } }
-        Behavior on r { NumberAnimation { duration: win.anim; easing.type: Easing.OutCubic } }
+        // The part of the shell that is actually visible (the input region).
+        Item { id: hit; y: shell.r; width: parent.width; height: parent.height - shell.r }
 
         HoverHandler {
             onHoveredChanged: {
@@ -129,7 +153,7 @@ PanelWindow {
         }
 
         // Custom wallpaper, rounded by a mask and dimmed so the controls stay readable.
-        Rectangle { id: maskRect; anchors.fill: parent; radius: shell.r; visible: false; layer.enabled: true }
+        Rectangle { id: maskRect; anchors.fill: parent; radius: win.shellR; visible: false; layer.enabled: true }
         Image { id: wp; anchors.fill: parent; visible: false; fillMode: Image.PreserveAspectCrop; asynchronous: true
             source: win.cfg.wallpaper ? "file://" + win.cfg.wallpaper : "" }
         MultiEffect {
@@ -138,20 +162,33 @@ PanelWindow {
         }
 
         // ---- collapsed glance ----
+        // Offset notch: clock, equaliser, timer. Pill: just a tiny hint (now playing, else the timer, else a dot).
+        // Rows do not centre their children (anchors there trigger "scene" warnings), so each child gets a fixed
+        // row height and the Text/bars are centred inside it.
         Row {
-            anchors.horizontalCenter: parent.horizontalCenter; y: shell.r + (win.collH - height) / 2; spacing: 10
+            id: pillRow
+            anchors.horizontalCenter: parent.horizontalCenter; y: shell.r + (win.collH - height) / 2; spacing: win.pill ? 7 : 10
+            height: win.collH
             opacity: win.expanded ? 0 : 1; visible: opacity > 0.01
             Behavior on opacity { NumberAnimation { duration: 160 } }
-            Row { visible: win.musicPlaying; spacing: 2; anchors.verticalCenter: parent.verticalCenter
-                Repeater { model: 3
-                    delegate: Rectangle { id: eqBar; required property int index; property real barH: 10; width: 2.5; height: barH; radius: 1; color: Theme.phos; anchors.bottom: parent.bottom
-                        SequentialAnimation { running: win.musicPlaying && !win.expanded && !win.cfg.reduceMotion; loops: Animation.Infinite
-                            NumberAnimation { target: eqBar; property: "barH"; to: 4 + eqBar.index * 2; duration: 300 + eqBar.index * 90 }
-                            NumberAnimation { target: eqBar; property: "barH"; to: 12; duration: 300 + eqBar.index * 70 } } } } }
-            Text { id: clock; anchors.verticalCenter: parent.verticalCenter; color: "#fff"; font.pixelSize: 12; font.family: Theme.sans; font.weight: Font.DemiBold
-                text: Qt.formatTime(new Date(), "h:mm")
-                Timer { interval: 15000; repeat: true; running: !win.expanded && win.visible; triggeredOnStart: true; onTriggered: clock.text = Qt.formatTime(new Date(), "h:mm") } }
-            Text { visible: win.app.pomo.running; anchors.verticalCenter: parent.verticalCenter; text: "◔ " + win.app.pomo.timeText; color: Theme.phos; font.pixelSize: 11; font.family: Theme.monoFamily }
+            Item { visible: win.musicPlaying; width: eqRow.width; height: parent.height
+                Row { id: eqRow; spacing: 2; height: 12; anchors.verticalCenter: parent.verticalCenter
+                    Repeater { model: 3
+                        delegate: Rectangle { id: eqBar; required property int index; property real barH: 10; width: 2.5; height: barH; radius: 1; color: Theme.phos; anchors.bottom: parent.bottom
+                            SequentialAnimation { running: win.musicPlaying && !win.expanded && !win.cfg.reduceMotion; loops: Animation.Infinite
+                                NumberAnimation { target: eqBar; property: "barH"; to: 4 + eqBar.index * 2; duration: 300 + eqBar.index * 90 }
+                                NumberAnimation { target: eqBar; property: "barH"; to: 12; duration: 300 + eqBar.index * 70 } } } } } }
+            Item { visible: !win.pill; width: clock.width; height: parent.height
+                Text { id: clock; anchors.verticalCenter: parent.verticalCenter; color: "#fff"; font.pixelSize: 12; font.family: Theme.sans; font.weight: Font.DemiBold
+                    text: Qt.formatTime(new Date(), "h:mm")
+                    Timer { interval: 15000; repeat: true; running: !win.expanded && win.visible && !win.pill; triggeredOnStart: true; onTriggered: clock.text = Qt.formatTime(new Date(), "h:mm") } } }
+            Item { visible: win.pill && win.musicPlaying; width: Math.min(110, track.implicitWidth); height: parent.height
+                Text { id: track; anchors.verticalCenter: parent.verticalCenter; width: parent.width; elide: Text.ElideRight
+                    text: win.player ? win.player.trackTitle : ""; color: Theme.text; font.pixelSize: 11; font.family: Theme.sans } }
+            Item { visible: win.app.pomo.running; width: pomoHint.width; height: parent.height
+                Text { id: pomoHint; anchors.verticalCenter: parent.verticalCenter; text: "◔ " + win.app.pomo.timeText; color: Theme.phos; font.pixelSize: 11; font.family: Theme.monoFamily } }
+            Item { visible: win.pill && !win.musicPlaying && !win.app.pomo.running; width: 6; height: parent.height
+                Rectangle { anchors.centerIn: parent; width: 6; height: 6; radius: 3; color: Theme.faint } }
         }
         // Collapsed: a click pins it open (also when "open on hover" is off).
         TapHandler { enabled: !win.expanded; onTapped: win.pinned = true }
@@ -209,8 +246,8 @@ PanelWindow {
     Shape {
         id: earL
         readonly property real edge: shell.x + shell.width * (1 - shell.scale) / 2
-        x: edge - width; y: 0; width: Theme.earRadius; height: Theme.earRadius
-        visible: shell.visible; preferredRendererType: Shape.CurveRenderer
+        x: edge - width; y: win.shellTop - win.clipY; width: Theme.earRadius; height: Theme.earRadius
+        visible: shell.visible && win.earRad > 0.5; preferredRendererType: Shape.CurveRenderer
         ShapePath {
             fillColor: shell.color; strokeColor: "transparent"
             startX: earL.width - win.earRad; startY: 0
@@ -228,8 +265,8 @@ PanelWindow {
     Shape {
         id: earR
         readonly property real edge: shell.x + shell.width - shell.width * (1 - shell.scale) / 2
-        x: edge; y: 0; width: Theme.earRadius; height: Theme.earRadius
-        visible: shell.visible; preferredRendererType: Shape.CurveRenderer
+        x: edge; y: win.shellTop - win.clipY; width: Theme.earRadius; height: Theme.earRadius
+        visible: shell.visible && win.earRad > 0.5; preferredRendererType: Shape.CurveRenderer
         ShapePath {
             fillColor: shell.color; strokeColor: "transparent"
             startX: 0; startY: win.earRad
@@ -242,6 +279,7 @@ PanelWindow {
             startX: 0; startY: win.earRad
             PathArc { x: win.earRad; y: 0; radiusX: win.earRad; radiusY: win.earRad; direction: PathArc.Clockwise }
         }
+    }
     }
 
     // ---- pages ----

@@ -37,7 +37,7 @@ The notch needs `hyprctl` (Hyprland) for global shortcuts, bar-aware placement a
 
 | Action | How |
 |---|---|
-| Open | Move the pointer to the top-centre notch (Settings, General turns hover off) |
+| Open | Move the pointer to the collapsed notch or pill (Settings, General turns hover off) |
 | Pin open | Click the notch or an empty part of the bar; click again to unpin |
 | Toggle | `SUPER + ALT + N` (the site's `Win + \`` is Omarchy's scratchpad key on 4.5+) |
 | Close | `Esc` or the Close button |
@@ -51,6 +51,23 @@ The notch needs `hyprctl` (Hyprland) for global shortcuts, bar-aware placement a
 `~/.config/buildnotch/config.json` is created on first run and rewritten by the Settings panel; edit either.
 Tasks, notes and the playground are in `~/.local/share/buildnotch/data.json`, the file tray in
 `~/.local/share/buildnotch/tray/`. No tokens are stored anywhere: GitHub uses your `gh` login.
+
+### Placement
+
+The centred notch hides the clock on bars that put it in the middle (Omarchy 4.x). `placement` moves the
+collapsed notch out of the way; it always opens to the full centred panel, animating from wherever it sits and
+shrinking back to the same spot. Set these in Settings, General, Placement or in `config.json`:
+
+| Key | Default | Meaning |
+|---|---|---|
+| `placement` | `"offset"` | `"offset"`: the collapsed notch hangs below the bar, off centre. `"pill"`: a small rounded black pill, as tall as the bar icons, sits on the bar. |
+| `offsetSide` | `"left"` | Offset mode: `"left"` or `"right"` of the screen centre. |
+| `offsetX` | `260` | Offset mode: px from the screen centre to the notch centre. |
+| `pillX` | `-190` | Pill mode: px from the screen centre to the pill centre; negative is left of the centre, so the default sits just left of the clock. Raise it (towards 0) or lower it if your clock is narrower or wider. |
+
+The pill shows a tiny live hint: the playing track, else the focus timer, else a dot. Hover it, or press
+`SUPER + ALT + N`, to open the panel downward; it shrinks back into the pill on close. Positions are clamped to
+the screen. The pill's height follows the reserved bar height (`topOffset` overrides it, as for the notch).
 
 ### AI usage
 

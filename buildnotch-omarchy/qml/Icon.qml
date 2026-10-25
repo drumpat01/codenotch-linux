@@ -8,6 +8,7 @@ Item {
     property color color: "#ffffff"
     property real size: 16
     width: size; height: size
+    implicitWidth: size; implicitHeight: size
     Image {
         id: img; anchors.fill: parent; visible: false
         source: ic.name ? "assets/icons/" + ic.name + ".svg" : ""

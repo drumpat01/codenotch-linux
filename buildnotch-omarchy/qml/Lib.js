@@ -20,6 +20,10 @@ var DEFAULT_CFG = {
     hideFullscreen: ["google-chrome", "chromium", "Google-chrome", "Chromium"],
     toggleHint: "Super + Alt + N",   // only the label in the hint bar; the real bind lives in your Hyprland config
     topOffset: -1,                   // px between the screen edge and the notch; -1 = sit below any bar that reserves space
+    placement: "offset",             // "offset": collapsed notch hangs below the bar, off centre; "pill": small pill overlaid on the bar
+    offsetSide: "left",              // offset: which side of the screen centre the collapsed notch sits on ("left" | "right")
+    offsetX: 260,                    // offset: px from the screen centre to the notch centre
+    pillX: -190,                     // pill: px from the screen centre to the pill centre (negative = left of centre)
     widgets: WIDGET_IDS.map(function (id) { return { id: id, visible: true }; }),
     usage: {
         refreshMinutes: 5,
@@ -79,10 +83,34 @@ function normalizeWidgets(saved) {
 
 function normalizeCfg(parsed) {
     var c = merge(DEFAULT_CFG, parsed);
+    // merge() drops type mismatches; accept numeric strings ("-120") for the placement offsets.
+    ["offsetX", "pillX"].forEach(function (k) {
+        if (parsed && typeof parsed[k] === "string") c[k] = parsed[k];
+    });
     c.widgets = normalizeWidgets(c.widgets);
     ["focusMin", "shortMin", "longMin"].forEach(function (k) { if (!(c[k] > 0)) c[k] = DEFAULT_CFG[k]; });
+    if (c.placement !== "offset" && c.placement !== "pill") c.placement = DEFAULT_CFG.placement;
+    if (c.offsetSide !== "left" && c.offsetSide !== "right") c.offsetSide = DEFAULT_CFG.offsetSide;
+    c.offsetX = Math.abs(num(c.offsetX, DEFAULT_CFG.offsetX));
+    c.pillX = num(c.pillX, DEFAULT_CFG.pillX);
     return c;
 }
+
+function num(v, fallback) {
+    var n = (v === null || v === "" || typeof v === "boolean") ? NaN : Number(v);
+    return isFinite(n) ? n : fallback;
+}
+
+// Left edge (px) of the collapsed notch or pill of width `w` on a screen `sw` wide, kept fully on screen.
+function collapsedLeft(cfg, sw, w) {
+    var off = cfg.placement === "pill" ? cfg.pillX : (cfg.offsetSide === "right" ? 1 : -1) * cfg.offsetX;
+    return Math.max(8, Math.min(sw - w - 8, Math.round(sw / 2 + off - w / 2)));
+}
+
+// Height of the pill: the bar's icon height, a little under the bar itself.
+function pillHeight(barH) { return Math.max(18, Math.min(26, (barH > 0 ? barH : 30) - 10)); }
+
+function lerp(a, b, t) { return a + (b - a) * t; }
 
 function normalizeData(parsed) {
     var d = merge(DEFAULT_DATA, parsed);
