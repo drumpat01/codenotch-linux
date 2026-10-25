@@ -1,6 +1,6 @@
 Icons in qml/assets/icons/
 
-* bell, settings, layout-grid, cpu, memory, net, battery, zap, download, x, heart: Lucide (https://lucide.dev),
+* bell, settings, layout-grid, cpu, memory, net, battery, zap, download: Lucide (https://lucide.dev),
   ISC License, full text in LUCIDE-LICENSE.txt.
 * skip-back, skip-forward, play, pause: drawn after the player glyphs on https://www.buildnotch.app (see NOTICE.md).
 * github: the GitHub mark from Octicons (https://github.com/primer/octicons), MIT License, Copyright (c) GitHub, Inc.

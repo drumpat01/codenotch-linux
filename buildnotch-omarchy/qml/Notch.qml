@@ -40,6 +40,9 @@ PanelWindow {
     }
     Connections { target: Hyprland.monitorFor(win.screen); ignoreUnknownSignals: true; function onLastIpcObjectChanged() { win.readBar(); } }
     Timer { id: barTimer; interval: 120; onTriggered: { Hyprland.refreshMonitors(); win.readBar(); } }
+    // Omarchy 4.x hides its bar by switching the layer's exclusion mode, which raises no layer event, so also
+    // re-read the reserved space once a second; the monitor object only signals when the value really changed.
+    Timer { interval: 1000; repeat: true; running: win.visible; onTriggered: Hyprland.refreshMonitors() }
     Component.onCompleted: barTimer.restart()
 
     // Concave "ears" where the notch meets the top edge, so it reads as one piece with the bezel.
@@ -141,10 +144,10 @@ PanelWindow {
             Behavior on opacity { NumberAnimation { duration: 160 } }
             Row { visible: win.musicPlaying; spacing: 2; anchors.verticalCenter: parent.verticalCenter
                 Repeater { model: 3
-                    delegate: Rectangle { required property int index; property real barH: 10; width: 2.5; height: barH; radius: 1; color: Theme.phos; anchors.bottom: parent.bottom
-                        SequentialAnimation on barH { running: win.musicPlaying && !win.expanded && !win.cfg.reduceMotion; loops: Animation.Infinite
-                            NumberAnimation { to: 4 + index * 2; duration: 300 + index * 90 }
-                            NumberAnimation { to: 12; duration: 300 + index * 70 } } } } }
+                    delegate: Rectangle { id: eqBar; required property int index; property real barH: 10; width: 2.5; height: barH; radius: 1; color: Theme.phos; anchors.bottom: parent.bottom
+                        SequentialAnimation { running: win.musicPlaying && !win.expanded && !win.cfg.reduceMotion; loops: Animation.Infinite
+                            NumberAnimation { target: eqBar; property: "barH"; to: 4 + eqBar.index * 2; duration: 300 + eqBar.index * 90 }
+                            NumberAnimation { target: eqBar; property: "barH"; to: 12; duration: 300 + eqBar.index * 70 } } } } }
             Text { id: clock; anchors.verticalCenter: parent.verticalCenter; color: "#fff"; font.pixelSize: 12; font.family: Theme.sans; font.weight: Font.DemiBold
                 text: Qt.formatTime(new Date(), "h:mm")
                 Timer { interval: 15000; repeat: true; running: !win.expanded && win.visible; triggeredOnStart: true; onTriggered: clock.text = Qt.formatTime(new Date(), "h:mm") } }
@@ -215,6 +218,12 @@ PanelWindow {
             PathLine { x: earL.width; y: win.earRad }
             PathArc { x: earL.width - win.earRad; y: 0; radiusX: win.earRad; radiusY: win.earRad; direction: PathArc.Counterclockwise }
         }
+        // The shell's 1px border continues along the concave edge so the join is seamless.
+        ShapePath {
+            fillColor: "transparent"; strokeColor: shell.border.color; strokeWidth: shell.border.width
+            startX: earL.width; startY: win.earRad
+            PathArc { x: earL.width - win.earRad; y: 0; radiusX: win.earRad; radiusY: win.earRad; direction: PathArc.Counterclockwise }
+        }
     }
     Shape {
         id: earR
@@ -227,6 +236,11 @@ PanelWindow {
             PathLine { x: 0; y: 0 }
             PathLine { x: win.earRad; y: 0 }
             PathArc { x: 0; y: win.earRad; radiusX: win.earRad; radiusY: win.earRad; direction: PathArc.Counterclockwise }
+        }
+        ShapePath {
+            fillColor: "transparent"; strokeColor: shell.border.color; strokeWidth: shell.border.width
+            startX: 0; startY: win.earRad
+            PathArc { x: win.earRad; y: 0; radiusX: win.earRad; radiusY: win.earRad; direction: PathArc.Clockwise }
         }
     }
 
