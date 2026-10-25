@@ -129,7 +129,7 @@ PanelWindow {
     Rectangle {
         id: shell
         // The offset notch's top corners sit above its top edge, so only the bottom is rounded.
-        readonly property real r: win.hideTop
+        property real r: win.hideTop
         x: Lib.lerp(Lib.collapsedLeft(win.cfg, win.screen.width, win.collW), (win.screen.width - win.bodyW) / 2, win.t)
         y: win.shellTop - win.clipY - r
         width: Lib.lerp(win.collW, win.bodyW, win.t)
