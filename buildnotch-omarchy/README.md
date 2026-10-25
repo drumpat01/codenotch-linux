@@ -9,7 +9,7 @@ Built with [Quickshell](https://quickshell.org) (QML) as a wlr-layer-shell overl
 how much room a bar claims at the top of each screen (Waybar on Omarchy 3.x, Omarchy's own shell bar on 4.x) and
 hangs below it, so it never covers the bar; set `topOffset` in the config to override. Quickshell gives MPRIS, the desktop-entry database, Hyprland global shortcuts and animated,
 fully custom drawing in one process, which is what a pixel-faithful notch needs. It is independent of the
-macOS/Windows Codenotch code in this repo and of `omarchy-ledge/`.
+macOS/Windows Codenotch code in this repo.
 
 ## Install (Omarchy / Arch)
 
