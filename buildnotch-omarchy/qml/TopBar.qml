@@ -14,12 +14,20 @@ Item {
     readonly property var navItems: [
         { page: "home", glyph: "", icon: "assets/nav-home.png" },
         { page: "media", glyph: "", icon: "assets/nav-media.png" },
-        { page: "files", glyph: "⤓", icon: "" },
+        { page: "files", glyph: "", icon: "assets/icons/download.svg" },
         { page: "clipboard", glyph: "", icon: "assets/nav-clipboard.png" },
         { page: "playground", glyph: "", icon: "assets/nav-play.png" },
-        { page: "settings", glyph: "⚟", icon: "" }
+        { page: "settings", glyph: "", icon: "assets/icons/settings.svg" }
     ]
     readonly property var v: app.sys.v
+
+    component Readout: Row {
+        property string icon
+        property string text
+        spacing: 5; anchors.verticalCenter: parent.verticalCenter
+        Icon { anchors.verticalCenter: parent.verticalCenter; name: parent.icon; size: 14; color: Theme.dim }
+        Text { anchors.verticalCenter: parent.verticalCenter; text: parent.text; color: Theme.text; font.pixelSize: 13; font.family: Theme.sans }
+    }
 
     // Clicking empty bar space pins / unpins the notch.
     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: bar.pinToggled() }
@@ -38,8 +46,9 @@ Item {
                     required property var modelData
                     width: 42; height: 32; radius: 16
                     color: bar.app.page === modelData.page ? Qt.rgba(1, 1, 1, 0.14) : (m.containsMouse ? Qt.rgba(1, 1, 1, 0.07) : "transparent")
-                    Image { visible: modelData.icon !== ""; anchors.centerIn: parent; width: 16; height: 16; source: modelData.icon; smooth: true; opacity: 0.9 }
-                    Text { visible: modelData.icon === ""; anchors.centerIn: parent; text: modelData.glyph; color: Theme.text; font.pixelSize: 15 }
+                    Image { visible: modelData.icon !== "" && modelData.icon.indexOf("/icons/") < 0; anchors.centerIn: parent; width: 16; height: 16; source: modelData.icon; smooth: true; opacity: 0.9 }
+                    Icon { visible: modelData.icon.indexOf("/icons/") >= 0; anchors.centerIn: parent; size: 16; opacity: 0.9
+                        name: modelData.icon.indexOf("/icons/") >= 0 ? modelData.icon.replace(/^.*\/icons\/|\.svg$/g, "") : "" }
                     MouseArea { id: m; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                         onClicked: bar.app.page = (bar.app.page === modelData.page && modelData.page !== "home") ? "home" : modelData.page }
                 }
@@ -51,20 +60,20 @@ Item {
         anchors.right: parent.right; anchors.rightMargin: 18; anchors.verticalCenter: parent.verticalCenter; spacing: 18
         // Edit layout
         Row { spacing: 6; anchors.verticalCenter: parent.verticalCenter
-            Text { text: "▦"; color: bar.editing ? Theme.phos : Theme.dim; font.pixelSize: 13; anchors.verticalCenter: parent.verticalCenter }
+            Icon { name: "layout-grid"; size: 14; color: bar.editing ? Theme.phos : Theme.dim; anchors.verticalCenter: parent.verticalCenter }
             Text { text: bar.editing ? "Done" : "Edit"; color: bar.editing ? Theme.phos : Theme.text; font.pixelSize: 13; font.family: Theme.sans; anchors.verticalCenter: parent.verticalCenter }
             MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: bar.editToggled() } }
-        Text { anchors.verticalCenter: parent.verticalCenter; text: "◎ " + bar.v.cpu + "%"; color: Theme.text; font.pixelSize: 13; font.family: Theme.sans }
-        Text { anchors.verticalCenter: parent.verticalCenter; text: "▭ " + bar.v.ramUsed.toFixed(1) + "/" + Math.round(bar.v.ramTotal) + " GB"; color: Theme.text; font.pixelSize: 13; font.family: Theme.sans }
-        Text { anchors.verticalCenter: parent.verticalCenter; text: "⇅ " + bar.v.net.toFixed(bar.v.net < 10 ? 1 : 0) + " MB/s"; color: Theme.text; font.pixelSize: 13; font.family: Theme.sans }
-        Text { visible: bar.v.bat >= 0; anchors.verticalCenter: parent.verticalCenter; text: (bar.v.charging ? "⚡ " : "▮ ") + bar.v.bat + "%"; color: Theme.text; font.pixelSize: 13; font.family: Theme.sans }
+        Readout { icon: "cpu"; text: bar.v.cpu + "%" }
+        Readout { icon: "memory"; text: bar.v.ramUsed.toFixed(1) + "/" + Math.round(bar.v.ramTotal) + " GB" }
+        Readout { icon: "net"; text: bar.v.net.toFixed(bar.v.net < 10 ? 1 : 0) + " MB/s" }
+        Readout { visible: bar.v.bat >= 0; icon: bar.v.charging ? "zap" : "battery"; text: bar.v.bat + "%" }
         // Bell
         Item { width: 20; height: 24; anchors.verticalCenter: parent.verticalCenter
-            Text { anchors.centerIn: parent; text: "🔔︎"; color: Theme.text; font.pixelSize: 15 }
+            Icon { anchors.centerIn: parent; name: "bell"; size: 16; color: Theme.text }
             Rectangle { visible: bar.app.unread > 0; x: 12; y: 0; width: 8; height: 8; radius: 4; color: Theme.phos }
             MouseArea { anchors.fill: parent; anchors.margins: -5; cursorShape: Qt.PointingHandCursor
                 onClicked: { bar.bellOpen = !bar.bellOpen; bar.app.unread = 0; } } }
-        Text { anchors.verticalCenter: parent.verticalCenter; text: "⚙"; color: Theme.text; font.pixelSize: 17
+        Icon { anchors.verticalCenter: parent.verticalCenter; name: "settings"; size: 17; color: Theme.text
             MouseArea { anchors.fill: parent; anchors.margins: -5; cursorShape: Qt.PointingHandCursor; onClicked: bar.app.page = bar.app.page === "settings" ? "home" : "settings" } }
         Text { anchors.verticalCenter: parent.verticalCenter; text: "Close"; color: "#fff"; font.pixelSize: 13; font.family: Theme.sans; font.weight: Font.DemiBold
             MouseArea { anchors.fill: parent; anchors.margins: -6; cursorShape: Qt.PointingHandCursor; onClicked: bar.closeRequested() } }

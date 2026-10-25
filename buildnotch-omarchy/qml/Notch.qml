@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Effects
+import QtQuick.Shapes
 import Quickshell
 import Quickshell.Wayland
 import Quickshell.Hyprland
@@ -25,6 +26,27 @@ PanelWindow {
     readonly property bool musicPlaying: Mpris.players.values.some(function (p) { return p.isPlaying; })
     readonly property int anim: cfg.reduceMotion ? 0 : 380
 
+    // Space a bar (Waybar on Omarchy 3.x, Omarchy's own shell bar on 4.x) reserves at the top of this screen.
+    // The notch hangs below it instead of covering it; `topOffset` in the config overrides the lookup.
+    property int barReserved: 0
+    readonly property int topInset: cfg.topOffset >= 0 ? cfg.topOffset : barReserved
+    function readBar() {
+        var m = Hyprland.monitorFor(screen);
+        barReserved = Lib.reservedTop(m ? m.lastIpcObject : null);
+    }
+    Connections {
+        target: Hyprland
+        function onRawEvent(event) { if (event.name === "openlayer" || event.name === "closelayer") barTimer.restart(); }
+    }
+    Connections { target: Hyprland.monitorFor(win.screen); ignoreUnknownSignals: true; function onLastIpcObjectChanged() { win.readBar(); } }
+    Timer { id: barTimer; interval: 120; onTriggered: { Hyprland.refreshMonitors(); win.readBar(); } }
+    Component.onCompleted: barTimer.restart()
+
+    // Concave "ears" where the notch meets the top edge, so it reads as one piece with the bezel.
+    property real earRad: expanded ? Theme.earRadius : Theme.earRadiusCollapsed
+    Behavior on earRad { NumberAnimation { duration: win.anim; easing.type: Easing.OutCubic } }
+    readonly property real shellScale: expanded ? 1 : Theme.collapsedScale
+
     readonly property var cardWidths: ({ music: 340, pomodoro: 280, ai: 280, usage: 300, github: 300, projects: 320, quote: 280, apps: 280, note: 300 })
     readonly property var visibleIds: cfg.widgets.filter(function (w) { return w.visible; }).map(function (w) { return w.id; })
     function slotX(i) { var x = 0; for (var k = 0; k < i; k++) x += cardWidths[visibleIds[k]] + 14; return x; }
@@ -36,7 +58,8 @@ PanelWindow {
     implicitHeight: bodyH + 24
     color: "transparent"
     exclusionMode: ExclusionMode.Ignore
-    mask: Region { item: shell }
+    margins.top: topInset
+    mask: Region { item: shell; regions: [Region { item: earL }, Region { item: earR }] }
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "buildnotch"
     WlrLayershell.keyboardFocus: expanded ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
@@ -87,7 +110,7 @@ PanelWindow {
         border.width: 1
         border.color: Qt.rgba(1, 1, 1, win.expanded ? 0.1 : 0.06)
         transformOrigin: Item.Top
-        scale: win.expanded ? 1 : 0.985
+        scale: win.shellScale
         clip: true
 
         Behavior on width { NumberAnimation { duration: win.anim; easing.type: Easing.OutBack; easing.overshoot: 0.4 } }
@@ -118,8 +141,8 @@ PanelWindow {
             Behavior on opacity { NumberAnimation { duration: 160 } }
             Row { visible: win.musicPlaying; spacing: 2; anchors.verticalCenter: parent.verticalCenter
                 Repeater { model: 3
-                    delegate: Rectangle { required property int index; width: 2.5; height: 10; radius: 1; color: Theme.phos; anchors.bottom: parent.bottom
-                        SequentialAnimation on height { running: win.musicPlaying && !win.expanded && !win.cfg.reduceMotion; loops: Animation.Infinite
+                    delegate: Rectangle { required property int index; property real barH: 10; width: 2.5; height: barH; radius: 1; color: Theme.phos; anchors.bottom: parent.bottom
+                        SequentialAnimation on barH { running: win.musicPlaying && !win.expanded && !win.cfg.reduceMotion; loops: Animation.Infinite
                             NumberAnimation { to: 4 + index * 2; duration: 300 + index * 90 }
                             NumberAnimation { to: 12; duration: 300 + index * 70 } } } } }
             Text { id: clock; anchors.verticalCenter: parent.verticalCenter; color: "#fff"; font.pixelSize: 12; font.family: Theme.sans; font.weight: Font.DemiBold
@@ -170,12 +193,40 @@ PanelWindow {
             // Hotkey bar
             Row {
                 anchors.bottom: parent.bottom; anchors.bottomMargin: 10; x: 16; spacing: 22
-                Kbd { keys: "Super + `"; caption: "Toggle" }
+                Kbd { keys: win.cfg.toggleHint; caption: "Toggle" }
                 Kbd { keys: "Esc"; caption: "Close" }
                 Kbd { keys: "Mouse wheel"; caption: "Browse cards" }
                 Kbd { keys: "Alt + 1–6"; caption: "AI apps" }
             }
             Rectangle { anchors.bottom: parent.bottom; anchors.bottomMargin: 34; width: parent.width; height: 1; color: Theme.hair }
+        }
+    }
+
+    // The ears follow the shell's animated edges (it scales about its top centre).
+    Shape {
+        id: earL
+        readonly property real edge: shell.x + shell.width * (1 - shell.scale) / 2
+        x: edge - width; y: 0; width: Theme.earRadius; height: Theme.earRadius
+        visible: shell.visible; preferredRendererType: Shape.CurveRenderer
+        ShapePath {
+            fillColor: shell.color; strokeColor: "transparent"
+            startX: earL.width - win.earRad; startY: 0
+            PathLine { x: earL.width; y: 0 }
+            PathLine { x: earL.width; y: win.earRad }
+            PathArc { x: earL.width - win.earRad; y: 0; radiusX: win.earRad; radiusY: win.earRad; direction: PathArc.Counterclockwise }
+        }
+    }
+    Shape {
+        id: earR
+        readonly property real edge: shell.x + shell.width - shell.width * (1 - shell.scale) / 2
+        x: edge; y: 0; width: Theme.earRadius; height: Theme.earRadius
+        visible: shell.visible; preferredRendererType: Shape.CurveRenderer
+        ShapePath {
+            fillColor: shell.color; strokeColor: "transparent"
+            startX: 0; startY: win.earRad
+            PathLine { x: 0; y: 0 }
+            PathLine { x: win.earRad; y: 0 }
+            PathArc { x: 0; y: win.earRad; radiusX: win.earRad; radiusY: win.earRad; direction: PathArc.Counterclockwise }
         }
     }
 
@@ -196,7 +247,7 @@ PanelWindow {
             // Mouse wheel browses cards.
             WheelHandler {
                 onWheel: event => {
-                    var d = event.angleDeta.y !== 0 ? event.angleDeta.y : event.angleDeta.x;
+                    var d = event.angleDelta.y !== 0 ? event.angleDelta.y : event.angleDelta.x;
                     flick.contentX = Math.max(-flick.leftMargin, Math.min(flick.contentWidth - flick.width - flick.leftMargin, flick.contentX - d));
                 }
             }
@@ -221,7 +272,6 @@ PanelWindow {
                         Behavior on x { enabled: !slot.lifted; NumberAnimation { duration: win.cfg.reduceMotion ? 0 : 220; easing.type: Easing.OutCubic } }
                         Behavior on scale { NumberAnimation { duration: 140 } }
                         // Jiggle in Edit mode, still otherwise and when animations are reduced.
-                        rotation: 0
                         SequentialAnimation on rotation {
                             running: win.editing && !win.cfg.reduceMotion && !slot.lifted; loops: Animation.Infinite
                             NumberAnimation { to: index % 2 ? -0.7 : 0.7; duration: 110 }

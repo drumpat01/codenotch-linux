@@ -10,7 +10,7 @@ const ctx = {};
 vm.createContext(ctx);
 vm.runInContext(src + "\nthis.Lib = { " +
     "normalizeCfg, normalizeData, normalizeWidgets, moveWidget, fmt, wordCount, relTime, formatJson, parseContributions, " +
-    "classifyClip, parseCliphist, clipMatches, parseSys, shouldHide, matchAiApps, parseUsage, QUOTES, DEFAULT_CFG, expandHome };", ctx);
+    "classifyClip, parseCliphist, clipMatches, parseSys, shouldHide, reservedTop, resizeRemaining, sourceBadge, matchAiApps, parseUsage, QUOTES, DEFAULT_CFG, expandHome };", ctx);
 const L = ctx.Lib;
 
 // config
@@ -86,6 +86,18 @@ assert.ok(Math.abs(s2.net - 2) < 0.001);
 assert.strictEqual(L.shouldHide({ fullscreen: 1, class: "Google-chrome" }, ["google-chrome"]), true);
 assert.strictEqual(L.shouldHide({ fullscreen: 0, class: "google-chrome" }, ["google-chrome"]), false);
 assert.strictEqual(L.shouldHide({ fullscreen: 2, class: "mpv" }, ["google-chrome"]), false);
+
+// timer length change, bar offset, music badge
+assert.strictEqual(L.resizeRemaining(600, 1500, 900), 0);
+assert.strictEqual(L.resizeRemaining(1500, 1500, 900), 900);
+assert.strictEqual(L.resizeRemaining(1200, 1500, 3000), 2700);
+assert.strictEqual(L.reservedTop({ reserved: [0, 38, 0, 0] }), 38);
+assert.strictEqual(L.reservedTop({ reserved: [0, 0, 0, 40] }), 0);
+assert.strictEqual(L.reservedTop(null), 0);
+assert.strictEqual(L.sourceBadge("Spotify", "spotify").name, "Spotify");
+assert.strictEqual(L.sourceBadge("Mozilla Firefox", "firefox").name, "Firefox");
+assert.strictEqual(L.sourceBadge("", "").name, "Player");
+assert.strictEqual(L.sourceBadge("Strawberry", "").name, "Strawberry");
 
 // AI apps and usage
 const m = L.matchAiApps([{ id: "firefox.desktop" }, { id: "cursor.desktop" }, { id: "Claude" }]);

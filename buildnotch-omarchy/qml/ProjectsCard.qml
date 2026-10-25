@@ -38,7 +38,7 @@ Card {
     Row {
         id: links; y: head.height + (addProject.visible ? 38 : 6); spacing: 6; height: 24
         Btn { visible: root.proj.path !== ""; label: "Terminal"; pixelSize: 10; implicitHeight: 24
-            onClicked: root.app.open(root.app.cfg.terminal.concat(["--", "sh", "-c", "cd '" + Lib.expandHome(root.proj.path, root.app.home) + "' && exec $SHELL"])) }
+            onClicked: root.app.open(root.app.cfg.terminal.concat(["--", "sh", "-c", "cd -- \"$1\" && exec \"${SHELL:-sh}\"", "sh", Lib.expandHome(root.proj.path, root.app.home)])) }
         Btn { visible: root.proj.path !== ""; label: "Editor"; pixelSize: 10; implicitHeight: 24
             onClicked: root.app.open(root.app.cfg.terminal.concat(root.app.cfg.editor).concat([Lib.expandHome(root.proj.path, root.app.home)])) }
         Btn { visible: root.proj.path !== ""; label: "Folder"; pixelSize: 10; implicitHeight: 24

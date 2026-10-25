@@ -18,6 +18,8 @@ var DEFAULT_CFG = {
     editor: ["nvim"],
     githubRefreshMinutes: 30,
     hideFullscreen: ["google-chrome", "chromium", "Google-chrome", "Chromium"],
+    toggleHint: "Super + Alt + N",   // only the label in the hint bar; the real bind lives in your Hyprland config
+    topOffset: -1,                   // px between the screen edge and the notch; -1 = sit below any bar that reserves space
     widgets: WIDGET_IDS.map(function (id) { return { id: id, visible: true }; }),
     usage: {
         refreshMinutes: 5,
@@ -268,6 +270,37 @@ function shouldHide(active, rules) {
     if (!active || !active.fullscreen) return false;
     var cls = String(active.class || "").toLowerCase();
     return (rules || []).some(function (r) { return String(r).toLowerCase() === cls; });
+}
+
+// Space (px) a bar reserves at the top of a `hyprctl monitors -j` entry: "reserved" is [left, top, right, bottom].
+function reservedTop(mon) {
+    var r = mon && mon.reserved;
+    var t = Array.isArray(r) ? Number(r[1]) : 0;
+    return isFinite(t) && t > 0 ? Math.round(t) : 0;
+}
+
+// Remaining seconds after the timer length changes mid-session: the time already spent is kept.
+function resizeRemaining(remaining, oldTotal, newTotal) {
+    var spent = Math.max(0, oldTotal - remaining);
+    return Math.max(0, newTotal - spent);
+}
+
+// Label and brand colour for the music card's source badge, from the MPRIS identity / desktop entry.
+var MUSIC_SOURCES = [
+    { re: /spotify/i, name: "Spotify", color: "#1ed760" },
+    { re: /youtube.?music|music\.youtube/i, name: "YouTube Music", color: "#ff0033" },
+    { re: /youtube/i, name: "YouTube", color: "#ff0033" },
+    { re: /firefox/i, name: "Firefox", color: "#ff7139" },
+    { re: /chrom|brave|vivaldi|edge/i, name: "Browser", color: "#4c8bf5" },
+    { re: /vlc/i, name: "VLC", color: "#ff8800" },
+    { re: /mpv/i, name: "mpv", color: "#8e5aa8" },
+    { re: /rhythmbox|lollypop|amberol|elisa|strawberry|clementine|cider|tidal/i, name: "", color: "#33e69a" }
+];
+function sourceBadge(identity, desktopEntry) {
+    var key = String(identity || "") + " " + String(desktopEntry || "");
+    for (var i = 0; i < MUSIC_SOURCES.length; i++)
+        if (MUSIC_SOURCES[i].re.test(key)) return { name: MUSIC_SOURCES[i].name || String(identity || "Player"), color: MUSIC_SOURCES[i].color };
+    return { name: String(identity || "").trim() || "Player", color: "#33e69a" };
 }
 
 // ---- AI apps and usage ----

@@ -5,24 +5,33 @@ and holds your music, focus timer, AI apps and usage, GitHub activity, projects 
 note, code playground, JSON formatter, clipboard history and file tray. See [FEATURES.md](FEATURES.md) for every
 feature and its port status.
 
-Built with [Quickshell](https://quickshell.org) (QML) as a wlr-layer-shell overlay, so it sits above Waybar without
-reserving space. Quickshell gives MPRIS, the desktop-entry database, Hyprland global shortcuts and animated,
+Built with [Quickshell](https://quickshell.org) (QML) as a wlr-layer-shell overlay that reserves no space. It reads
+how much room a bar claims at the top of each screen (Waybar on Omarchy 3.x, Omarchy's own shell bar on 4.x) and
+hangs below it, so it never covers the bar; set `topOffset` in the config to override. Quickshell gives MPRIS, the desktop-entry database, Hyprland global shortcuts and animated,
 fully custom drawing in one process, which is what a pixel-faithful notch needs. It is independent of the
 macOS/Windows Codenotch code in this repo and of `omarchy-ledge/`.
 
 ## Install (Omarchy / Arch)
 
 ```sh
-sudo pacman -S --needed quickshell libnotify github-cli cliphist wl-clipboard
+sudo pacman -S --needed quickshell qt6-svg libnotify github-cli cliphist wl-clipboard xdg-utils
 gh auth login            # once, for the GitHub card
-./install.sh             # to ~/.local/share/buildnotch-app and ~/.local/bin/buildnotch
+./install.sh --hypr      # to ~/.local/share/buildnotch-app and ~/.local/bin/buildnotch, plus the Hyprland lines
 ```
 
-Add the lines from [`hyprland.conf`](hyprland.conf) to `~/.config/hypr/hyprland.conf` (or Omarchy's
-`autostart.conf` / `bindings.conf`), then run `buildnotch` or log out and in. A package is available through
-`makepkg -si` (PKGBUILD). Uninstall with `./install.sh --uninstall`.
+Omarchy 3.x and 4.x configure Hyprland differently, and `--hypr` picks the right one:
 
-Clipboard history needs the watcher `wl-paste --watch cliphist store`, which Omarchy already starts.
+| Omarchy | Config | Lines to add | Files |
+|---|---|---|---|
+| 3.x | `.conf` | [`hyprland.conf`](hyprland.conf) | `autostart.conf`, `bindings.conf` |
+| 4.x | Lua | [`hyprland.lua`](hyprland.lua) | `autostart.lua`, `bindings.lua` |
+
+Without `--hypr` the installer only copies files; add the lines by hand. Then run `buildnotch` or log out and in.
+A package is available through `cd buildnotch-omarchy && makepkg -si` (PKGBUILD, builds from the repository's
+`main` branch). Uninstall with `./install.sh --uninstall`. Licenses of the bundled fonts, icons and the
+buildnotch.app artwork are in [NOTICE.md](NOTICE.md).
+
+The notch needs `hyprctl` (Hyprland) for global shortcuts, bar-aware placement and fullscreen hiding. Clipboard history needs the watcher `wl-paste --watch cliphist store`, which Omarchy already starts.
 
 ## Use
 
@@ -30,7 +39,7 @@ Clipboard history needs the watcher `wl-paste --watch cliphist store`, which Oma
 |---|---|
 | Open | Move the pointer to the top-centre notch (Settings, General turns hover off) |
 | Pin open | Click the notch or an empty part of the bar; click again to unpin |
-| Toggle | `SUPER + \`` |
+| Toggle | `SUPER + ALT + N` (the site's `Win + \`` is Omarchy's scratchpad key on 4.5+) |
 | Close | `Esc` or the Close button |
 | Browse cards | Mouse wheel over the cards |
 | Launch AI apps | `ALT + 1` to `6` (click the notch once so it has keyboard focus) |

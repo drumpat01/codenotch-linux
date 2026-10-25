@@ -22,6 +22,9 @@ QtObject {
 
     readonly property int cardRadius: 20
     readonly property int shellRadius: 20
+    readonly property int earRadius: 18          // concave corner where the open notch meets the screen edge
+    readonly property int earRadiusCollapsed: 10
+    readonly property real collapsedScale: 0.96  // buildnotch.app: the shell opens from scale 0.96 to 1
     readonly property int barHeight: 56
     readonly property int cardHeight: 332
 

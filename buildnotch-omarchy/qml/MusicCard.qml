@@ -1,6 +1,6 @@
 import QtQuick
-import QtQuick.Layouts
 import Quickshell.Services.Mpris
+import "Lib.js" as Lib
 
 // Now playing through MPRIS: artwork, track, source badge, transport controls, seekable progress.
 Card {
@@ -14,6 +14,7 @@ Card {
         for (let i = 0; i < list.length; i++) if (list[i].isPlaying) return list[i];
         return list.length > 0 ? list[0] : null;
     }
+    readonly property var badge: Lib.sourceBadge(player ? player.identity : "", player ? player.desktopEntry : "")
     readonly property real frac: player && player.lengthSupported && player.length > 0 ? Math.min(1, player.position / player.length) : 0
 
     Timer {
@@ -36,6 +37,16 @@ Card {
                     anchors.fill: parent
                     source: root.player ? root.player.trackArtUrl : ""
                     fillMode: Image.PreserveAspectCrop; asynchronous: true
+                }
+                // Source badge: which player the track is coming from.
+                Rectangle {
+                    x: 8; y: 8; height: 22; width: badgeRow.width + 16; radius: 11
+                    color: Qt.rgba(0, 0, 0, 0.6); border.color: Qt.rgba(1, 1, 1, 0.14); border.width: 1
+                    Row {
+                        id: badgeRow; anchors.centerIn: parent; spacing: 6
+                        Rectangle { anchors.verticalCenter: parent.verticalCenter; width: 7; height: 7; radius: 3.5; color: root.badge.color }
+                        Text { anchors.verticalCenter: parent.verticalCenter; text: root.badge.name; color: "#fff"; font.pixelSize: 10; font.family: Theme.sans; font.weight: Font.DemiBold }
+                    }
                 }
             }
         }
@@ -62,13 +73,14 @@ Card {
                 Row {
                     spacing: 6; anchors.verticalCenter: parent.verticalCenter
                     Repeater {
-                        model: [{ g: "⏮", k: "prev" }, { g: "play", k: "play" }, { g: "⏭", k: "next" }]
+                        model: [{ k: "prev" }, { k: "play" }, { k: "next" }]
                         delegate: Item {
                             required property var modelData
                             width: 32; height: 32
-                            Text {
-                                anchors.centerIn: parent; color: "#fff"; font.pixelSize: 16
-                                text: modelData.k === "play" ? (root.player && root.player.isPlaying ? "⏸" : "▶") : modelData.g
+                            Icon {
+                                anchors.centerIn: parent; size: modelData.k === "play" ? 18 : 16
+                                name: modelData.k === "play" ? (root.player && root.player.isPlaying ? "pause" : "play")
+                                                              : (modelData.k === "prev" ? "skip-back" : "skip-forward")
                             }
                             MouseArea {
                                 anchors.fill: parent; cursorShape: Qt.PointingHandCursor

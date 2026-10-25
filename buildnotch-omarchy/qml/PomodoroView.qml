@@ -66,7 +66,7 @@ Item {
         property color fillColor: "transparent"
         property color glyph: Theme.text
         width: 36; height: 36; radius: 8; color: fillColor
-        Text { anchors.centerIn: parent; text: v.m.running ? "⏸" : "▶"; color: parent.glyph; font.pixelSize: 15 }
+        Icon { anchors.centerIn: parent; name: v.m.running ? "pause" : "play"; color: parent.glyph; size: 15 }
         MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: v.m.toggle() }
     }
 
@@ -190,7 +190,6 @@ Item {
             Rectangle {
                 id: disc; anchors.horizontalCenter: parent.horizontalCenter; y: 14; width: 140 * v.bigFont(); height: width; radius: width / 2
                 color: "#1b2821"; border.color: "#365c45"; border.width: 1
-                scale: 1
                 SequentialAnimation on scale {
                     running: v.m.running && !v.app.cfg.reduceMotion; loops: Animation.Infinite
                     NumberAnimation { to: 1.06; duration: 4000; easing.type: Easing.InOutSine }

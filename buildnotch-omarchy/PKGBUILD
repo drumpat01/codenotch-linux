@@ -1,20 +1,40 @@
 # Maintainer: Patrick <patrickbstewart@gmail.com>
 pkgname=buildnotch-omarchy-git
-pkgver=0.1.0
+pkgver=0.1.0.r0.g0000000
 pkgrel=1
 pkgdesc='BuildNotch for Omarchy/Hyprland: a hover notch with music, focus timer, AI apps, GitHub, tasks, clipboard and more'
 arch=('any')
 url='https://github.com/drumpat01/codenotch-linux'
-license=('MIT')
-depends=('quickshell' 'libnotify' 'github-cli' 'qt6-declarative' 'cliphist' 'wl-clipboard')
-optdepends=('xdg-terminal-exec: open project folders in a terminal')
-source=()
+# MIT for the code, OFL-1.1 for the bundled fonts. The buildnotch.app artwork is NOT MIT: see NOTICE.md.
+license=('MIT' 'OFL-1.1')
+depends=('quickshell' 'qt6-svg' 'libnotify' 'github-cli' 'cliphist' 'wl-clipboard')
+makedepends=('git')
+optdepends=('hyprland: global shortcuts, fullscreen hiding and bar-aware placement (hyprctl)'
+            'xdg-utils: open project folders and sites (xdg-open)'
+            'xdg-terminal-exec: open project folders in a terminal')
+provides=('buildnotch-omarchy')
+conflicts=('buildnotch-omarchy')
+source=("$pkgname::git+$url.git#branch=main")
+sha256sums=('SKIP')
+
+pkgver() {
+    cd "$srcdir/$pkgname"
+    # No release tags yet: version = number of commits touching this directory.
+    printf '0.1.0.r%s.g%s' "$(git rev-list --count HEAD -- buildnotch-omarchy)" "$(git rev-parse --short HEAD)"
+}
 
 package() {
-    cd "$startdir"
-    install -d "$pkgdir/usr/share/buildnotch" "$pkgdir/usr/bin"
+    cd "$srcdir/$pkgname/buildnotch-omarchy"
+    install -d "$pkgdir/usr/share/buildnotch"
     cp -r qml "$pkgdir/usr/share/buildnotch/qml"
     chmod 755 "$pkgdir"/usr/share/buildnotch/qml/scripts/*.sh
     install -Dm644 config.example.json "$pkgdir/usr/share/buildnotch/config.example.json"
+    install -Dm644 hyprland.conf "$pkgdir/usr/share/buildnotch/hyprland.conf"
+    install -Dm644 hyprland.lua "$pkgdir/usr/share/buildnotch/hyprland.lua"
     install -Dm755 bin/buildnotch "$pkgdir/usr/bin/buildnotch"
+    install -Dm644 ../LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+    install -Dm644 licenses/OFL-fonts.txt "$pkgdir/usr/share/licenses/$pkgname/OFL-fonts.txt"
+    install -Dm644 licenses/ICONS.txt "$pkgdir/usr/share/licenses/$pkgname/ICONS.txt"
+    install -Dm644 licenses/LUCIDE-LICENSE.txt "$pkgdir/usr/share/licenses/$pkgname/LUCIDE-LICENSE.txt"
+    install -Dm644 NOTICE.md "$pkgdir/usr/share/licenses/$pkgname/NOTICE.md"
 }

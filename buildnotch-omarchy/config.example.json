@@ -15,6 +15,8 @@
     "nvim"
   ],
   "githubRefreshMinutes": 30,
+  "toggleHint": "Super + Alt + N",
+  "topOffset": -1,
   "hideFullscreen": [
     "google-chrome",
     "chromium",

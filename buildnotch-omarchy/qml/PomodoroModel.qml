@@ -23,7 +23,19 @@ QtObject {
     readonly property string timeText: Lib.fmt(remaining)
     readonly property string stateText: running ? (mode === "focus" ? "FOCUS" : "BREAK") : (started && remaining < total ? "PAUSED" : "READY")
 
-    onTotalChanged: if (!running && !started) remaining = total
+    property int lastTotal: 0
+    Component.onCompleted: lastTotal = total
+    // A length change (Settings, the +/- buttons) keeps the time already spent: a running timer moves its
+    // end, a paused one is clamped, a fresh one just takes the new length.
+    onTotalChanged: {
+        if (!started) remaining = total;
+        else {
+            if (running) tick();
+            remaining = Lib.resizeRemaining(remaining, lastTotal, total);
+            if (running) endsAt = Date.now() + remaining * 1000;
+        }
+        lastTotal = total;
+    }
 
     function start() {
         if (remaining <= 0) remaining = total;
@@ -34,7 +46,7 @@ QtObject {
     function pause() { tick(); running = false; }
     function toggle() { running ? pause() : start(); }
     function reset() { running = false; started = false; remaining = total; }
-    function setMode(m) { running = false; started = false; mode = m; remaining = lengths[m]; }
+    function setMode(m) { running = false; started = false; mode = m; remaining = lengths[m]; lastTotal = lengths[m]; }
     function tick() { remaining = Math.max(0, Math.ceil((endsAt - Date.now()) / 1000)); }
 
     function finish() {

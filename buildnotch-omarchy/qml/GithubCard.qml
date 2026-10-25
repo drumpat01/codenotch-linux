@@ -13,7 +13,7 @@ Card {
     Row {
         anchors.horizontalCenter: parent.horizontalCenter; spacing: 8; height: 26
         Rectangle { anchors.verticalCenter: parent.verticalCenter; width: 22; height: 22; radius: 11; color: "#fff"
-            Text { anchors.centerIn: parent; text: "⑂"; color: "#0a0b0d"; font.pixelSize: 14; font.weight: Font.Bold } }
+            Icon { anchors.centerIn: parent; size: 14; name: "github"; color: "#0a0b0d" } }
         Text { anchors.verticalCenter: parent.verticalCenter; text: "GitHub"; color: "#fff"; font.pixelSize: 16; font.family: Theme.sans; font.weight: Font.DemiBold }
     }
     Rectangle {
