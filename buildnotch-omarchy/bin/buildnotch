@@ -1,0 +1,12 @@
+#!/bin/sh
+# Launcher: starts the notch under Quickshell.
+dir="${BUILDNOTCH_DIR:-/usr/share/buildnotch}"
+[ -d "$dir/qml" ] || dir="$(cd "$(dirname "$0")/.." && pwd)"
+mkdir -p "${XDG_CONFIG_HOME:-$HOME/.config}/buildnotch" "${XDG_DATA_HOME:-$HOME/.local/share}/buildnotch"
+export QT_QUICK_CONTROLS_STYLE=Basic
+# Clipboard history needs a watcher feeding cliphist; start one if nobody has.
+if command -v cliphist >/dev/null 2>&1 && command -v wl-paste >/dev/null 2>&1 \
+    && ! pgrep -f 'wl-paste.*cliphist store' >/dev/null 2>&1; then
+    setsid wl-paste --watch cliphist store >/dev/null 2>&1 &
+fi
+exec quickshell -p "$dir/qml" "$@"
