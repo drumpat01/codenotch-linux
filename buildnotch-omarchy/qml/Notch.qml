@@ -1,0 +1,267 @@
+import QtQuick
+import QtQuick.Effects
+import Quickshell
+import Quickshell.Wayland
+import Quickshell.Hyprland
+import Quickshell.Services.Mpris
+import "Lib.js" as Lib
+
+// One notch per screen: a layer-shell overlay that only takes input over its own body.
+PanelWindow {
+    id: win
+    required property var app
+    readonly property var cfg: app.cfg
+
+    property bool hovering: false
+    property bool pinned: false
+    property bool editing: false
+    readonly property bool expanded: pinned || (cfg.hoverOpen && hovering)
+
+    readonly property int maxW: 1080
+    readonly property int bodyW: Math.min(maxW, screen.width - 32)
+    readonly property int bodyH: Theme.barHeight + 8 + Theme.cardHeight + 16 + 34
+    readonly property int collW: cfg.shortNotch ? 150 : 210
+    readonly property int collH: 30
+    readonly property bool musicPlaying: Mpris.players.values.some(function (p) { return p.isPlaying; })
+    readonly property int anim: cfg.reduceMotion ? 0 : 380
+
+    readonly property var cardWidths: ({ music: 340, pomodoro: 280, ai: 280, usage: 300, github: 300, projects: 320, quote: 280, apps: 280, note: 300 })
+    readonly property var visibleIds: cfg.widgets.filter(function (w) { return w.visible; }).map(function (w) { return w.id; })
+    function slotX(i) { var x = 0; for (var k = 0; k < i; k++) x += cardWidths[visibleIds[k]] + 14; return x; }
+    readonly property int rowWidth: Math.max(0, slotX(visibleIds.length) - 14)
+
+    visible: !app.fullscreen.hidden && (cfg.monitor === "" || screen.name === cfg.monitor)
+    anchors { top: true }
+    implicitWidth: maxW + 40
+    implicitHeight: bodyH + 24
+    color: "transparent"
+    exclusionMode: ExclusionMode.Ignore
+    mask: Region { item: shell }
+    WlrLayershell.layer: WlrLayer.Overlay
+    WlrLayershell.namespace: "buildnotch"
+    WlrLayershell.keyboardFocus: expanded ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+
+    onExpandedChanged: {
+        app.openCount += expanded ? 1 : -1;
+        if (!expanded) { editing = false; topBar.bellOpen = false; }
+    }
+
+    Connections {
+        target: win.app
+        function onToggleRequested() {
+            if (Hyprland.focusedMonitor && Hyprland.focusedMonitor.name !== win.screen.name) return;
+            win.pinned = !win.expanded;
+            if (!win.pinned) win.hovering = false;
+        }
+        function onPageRequested(page) {
+            if (Hyprland.focusedMonitor && Hyprland.focusedMonitor.name !== win.screen.name) return;
+            win.app.page = page; win.pinned = true;
+        }
+    }
+
+    Timer { id: closeTimer; interval: 350; onTriggered: win.hovering = false }
+    Timer { id: openTimer; interval: 90; onTriggered: win.hovering = true }
+
+    Shortcut { sequence: "Escape"; enabled: win.expanded; onActivated: { win.pinned = false; win.hovering = false; } }
+    Repeater {
+        model: 6
+        delegate: Item {
+            required property int index
+            Shortcut {
+                sequence: "Alt+" + (index + 1); enabled: win.expanded
+                onActivated: { var l = win.app.apps.ai; if (index < l.length) win.app.apps.launch(l[index]); }
+            }
+        }
+    }
+
+    Rectangle {
+        id: shell
+        anchors.horizontalCenter: parent.horizontalCenter
+        // The top corners sit above the screen edge, so only the bottom is rounded.
+        readonly property int r: win.expanded ? Theme.shellRadius : 14
+        y: -r
+        width: win.expanded ? win.bodyW : win.collW
+        height: (win.expanded ? win.bodyH : win.collH) + r
+        radius: r
+        color: "#050708"
+        border.width: 1
+        border.color: Qt.rgba(1, 1, 1, win.expanded ? 0.1 : 0.06)
+        transformOrigin: Item.Top
+        scale: win.expanded ? 1 : 0.985
+        clip: true
+
+        Behavior on width { NumberAnimation { duration: win.anim; easing.type: Easing.OutBack; easing.overshoot: 0.4 } }
+        Behavior on height { NumberAnimation { duration: win.anim; easing.type: Easing.OutBack; easing.overshoot: 0.4 } }
+        Behavior on scale { NumberAnimation { duration: win.anim; easing.type: Easing.OutCubic } }
+        Behavior on r { NumberAnimation { duration: win.anim; easing.type: Easing.OutCubic } }
+
+        HoverHandler {
+            onHoveredChanged: {
+                if (hovered) { closeTimer.stop(); openTimer.restart(); }
+                else { openTimer.stop(); closeTimer.restart(); }
+            }
+        }
+
+        // Custom wallpaper, rounded by a mask and dimmed so the controls stay readable.
+        Rectangle { id: maskRect; anchors.fill: parent; radius: shell.r; visible: false; layer.enabled: true }
+        Image { id: wp; anchors.fill: parent; visible: false; fillMode: Image.PreserveAspectCrop; asynchronous: true
+            source: win.cfg.wallpaper ? "file://" + win.cfg.wallpaper : "" }
+        MultiEffect {
+            anchors.fill: parent; source: wp; visible: wp.status === Image.Ready && win.expanded
+            maskEnabled: true; maskSource: maskRect; brightness: -0.55
+        }
+
+        // ---- collapsed glance ----
+        Row {
+            anchors.horizontalCenter: parent.horizontalCenter; y: shell.r + (win.collH - height) / 2; spacing: 10
+            opacity: win.expanded ? 0 : 1; visible: opacity > 0.01
+            Behavior on opacity { NumberAnimation { duration: 160 } }
+            Row { visible: win.musicPlaying; spacing: 2; anchors.verticalCenter: parent.verticalCenter
+                Repeater { model: 3
+                    delegate: Rectangle { required property int index; width: 2.5; height: 10; radius: 1; color: Theme.phos; anchors.bottom: parent.bottom
+                        SequentialAnimation on height { running: win.musicPlaying && !win.expanded && !win.cfg.reduceMotion; loops: Animation.Infinite
+                            NumberAnimation { to: 4 + index * 2; duration: 300 + index * 90 }
+                            NumberAnimation { to: 12; duration: 300 + index * 70 } } } } }
+            Text { id: clock; anchors.verticalCenter: parent.verticalCenter; color: "#fff"; font.pixelSize: 12; font.family: Theme.sans; font.weight: Font.DemiBold
+                text: Qt.formatTime(new Date(), "h:mm")
+                Timer { interval: 15000; repeat: true; running: !win.expanded && win.visible; triggeredOnStart: true; onTriggered: clock.text = Qt.formatTime(new Date(), "h:mm") } }
+            Text { visible: win.app.pomo.running; anchors.verticalCenter: parent.verticalCenter; text: "◔ " + win.app.pomo.timeText; color: Theme.phos; font.pixelSize: 11; font.family: Theme.monoFamily }
+        }
+        // Collapsed: a click pins it open (also when "open on hover" is off).
+        TapHandler { enabled: !win.expanded; onTapped: win.pinned = true }
+
+        // ---- expanded content ----
+        Item {
+            id: content
+            anchors.fill: parent; anchors.topMargin: shell.r
+            opacity: win.expanded ? 1 : 0
+            visible: opacity > 0.01
+            Behavior on opacity { NumberAnimation { duration: win.expanded ? 260 : 120 } }
+
+            TopBar {
+                id: topBar
+                app: win.app; width: parent.width
+                editing: win.editing
+                onEditToggled: { win.editing = !win.editing; win.app.page = "home"; }
+                onCloseRequested: { win.pinned = false; win.hovering = false; }
+                onPinToggled: win.pinned = !win.pinned
+            }
+
+            // Bell popup: recent notch events.
+            Rectangle {
+                visible: topBar.bellOpen; z: 20; x: parent.width - width - 60; y: topBar.height - 6; width: 260; height: Math.min(220, nl.contentHeight + 20); radius: 12
+                color: Theme.glass; border.color: Theme.hair2; border.width: 1
+                ListView { id: nl; anchors.fill: parent; anchors.margins: 10; clip: true; spacing: 6; model: win.app.notices
+                    delegate: Text { required property var modelData; width: nl.width; elide: Text.ElideRight; color: Theme.text; font.pixelSize: 11; font.family: Theme.sans
+                        text: modelData.text + "  ·  " + Lib.relTime(modelData.at) } }
+                Text { visible: win.app.notices.length === 0; anchors.centerIn: parent; text: "No notifications"; color: Theme.faint; font.pixelSize: 11; font.family: Theme.sans }
+            }
+
+            Item {
+                id: pageArea
+                y: topBar.height + 8; width: parent.width; height: Theme.cardHeight
+
+                Loader {
+                    anchors.fill: parent
+                    sourceComponent: ({ home: home, media: media, files: files, clipboard: clipboard, playground: playground, settings: settings })[win.app.page] || home
+                }
+            }
+
+            // Hotkey bar
+            Row {
+                anchors.bottom: parent.bottom; anchors.bottomMargin: 10; x: 16; spacing: 22
+                Kbd { keys: "Super + `"; caption: "Toggle" }
+                Kbd { keys: "Esc"; caption: "Close" }
+                Kbd { keys: "Mouse wheel"; caption: "Browse cards" }
+                Kbd { keys: "Alt + 1–6"; caption: "AI apps" }
+            }
+            Rectangle { anchors.bottom: parent.bottom; anchors.bottomMargin: 34; width: parent.width; height: 1; color: Theme.hair }
+        }
+    }
+
+    // ---- pages ----
+    Component { id: media; Item { MusicCard { anchors.horizontalCenter: parent.horizontalCenter; app: win.app; big: true; height: parent.height } } }
+    Component { id: files; FilesDrawer { app: win.app } }
+    Component { id: clipboard; ClipboardDrawer { app: win.app } }
+    Component { id: playground; PlaygroundDrawer { app: win.app } }
+    Component { id: settings; SettingsDrawer { app: win.app } }
+
+    Component {
+        id: home
+        Flickable {
+            id: flick
+            contentWidth: win.rowWidth + 32; contentHeight: height
+            leftMargin: 16; rightMargin: 16; clip: true; boundsBehavior: Flickable.StopAtBounds
+            flickableDirection: Flickable.HorizontalFlick
+            // Mouse wheel browses cards.
+            WheelHandler {
+                onWheel: event => {
+                    var d = event.angleDeta.y !== 0 ? event.angleDeta.y : event.angleDeta.x;
+                    flick.contentX = Math.max(-flick.leftMargin, Math.min(flick.contentWidth - flick.width - flick.leftMargin, flick.contentX - d));
+                }
+            }
+            Behavior on contentX { enabled: !flick.moving && !flick.dragging; NumberAnimation { duration: 120 } }
+
+            Item {
+                id: row
+                width: win.rowWidth; height: parent.height
+                Repeater {
+                    model: win.visibleIds
+                    delegate: Item {
+                        id: slot
+                        required property string modelData
+                        required property int index
+                        property real dragOffset: 0
+                        property bool lifted: false
+                        x: slotX + dragOffset
+                        readonly property real slotX: win.slotX(index)
+                        width: win.cardWidths[modelData]; height: Theme.cardHeight
+                        z: lifted ? 10 : 0
+                        scale: lifted ? 1.03 : 1
+                        Behavior on x { enabled: !slot.lifted; NumberAnimation { duration: win.cfg.reduceMotion ? 0 : 220; easing.type: Easing.OutCubic } }
+                        Behavior on scale { NumberAnimation { duration: 140 } }
+                        // Jiggle in Edit mode, still otherwise and when animations are reduced.
+                        rotation: 0
+                        SequentialAnimation on rotation {
+                            running: win.editing && !win.cfg.reduceMotion && !slot.lifted; loops: Animation.Infinite
+                            NumberAnimation { to: index % 2 ? -0.7 : 0.7; duration: 110 }
+                            NumberAnimation { to: index % 2 ? 0.7 : -0.7; duration: 110 }
+                            onRunningChanged: if (!running) slot.rotation = 0
+                        }
+                        Loader {
+                            anchors.fill: parent
+                            sourceComponent: ({ music: cMusic, pomodoro: cPomo, ai: cAi, usage: cUsage, github: cGh, projects: cProj,
+                                                quote: cQuote, apps: cApps, note: cNote })[slot.modelData]
+                        }
+                        // Edit mode: grab to lift and reorder; the card settles into the slot it is released over.
+                        MouseArea {
+                            anchors.fill: parent; enabled: win.editing; visible: win.editing; z: 5; cursorShape: Qt.OpenHandCursor
+                            property real startX: 0
+                            onPressed: mouse => { slot.lifted = true; startX = mapToItem(row, mouse.x, 0).x; }
+                            onPositionChanged: mouse => { if (slot.lifted) slot.dragOffset = mapToItem(row, mouse.x, 0).x - startX; }
+                            onReleased: {
+                                var center = slot.slotX + slot.dragOffset + slot.width / 2, to = slot.modelData, best = 1e9;
+                                for (var i = 0; i < win.visibleIds.length; i++) {
+                                    var c = win.slotX(i) + win.cardWidths[win.visibleIds[i]] / 2;
+                                    if (Math.abs(c - center) < best) { best = Math.abs(c - center); to = win.visibleIds[i]; }
+                                }
+                                slot.lifted = false; slot.dragOffset = 0;
+                                if (to !== slot.modelData) win.app.setCfg("widgets", Lib.moveWidget(win.cfg.widgets, slot.modelData, to));
+                            }
+                            Rectangle { anchors.fill: parent; radius: Theme.cardRadius; color: "transparent"; border.color: Theme.phos; border.width: 1; opacity: 0.55 }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    Component { id: cMusic; MusicCard { app: win.app } }
+    Component { id: cPomo; PomodoroCard { app: win.app } }
+    Component { id: cAi; AiCard { app: win.app } }
+    Component { id: cUsage; UsageCard { app: win.app } }
+    Component { id: cGh; GithubCard { app: win.app } }
+    Component { id: cProj; ProjectsCard { app: win.app } }
+    Component { id: cQuote; QuoteCard { app: win.app } }
+    Component { id: cApps; AppsCard { app: win.app } }
+    Component { id: cNote; NoteCard { app: win.app } }
+}

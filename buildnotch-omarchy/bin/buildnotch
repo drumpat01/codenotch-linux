@@ -1,0 +1,7 @@
+#!/bin/sh
+# Launcher: starts the notch under Quickshell.
+dir="${BUILDNOTCH_DIR:-/usr/share/buildnotch}"
+[ -d "$dir/qml" ] || dir="$(cd "$(dirname "$0")/.." && pwd)"
+mkdir -p "${XDG_CONFIG_HOME:-$HOME/.config}/buildnotch" "${XDG_DATA_HOME:-$HOME/.local/share}/buildnotch"
+export QT_QUICK_CONTROLS_STYLE=Basic
+exec quickshell -p "$dir/qml" "$@"

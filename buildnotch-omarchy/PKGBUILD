@@ -1,0 +1,20 @@
+# Maintainer: Patrick <patrickbstewart@gmail.com>
+pkgname=buildnotch-omarchy-git
+pkgver=0.1.0
+pkgrel=1
+pkgdesc='BuildNotch for Omarchy/Hyprland: a hover notch with music, focus timer, AI apps, GitHub, tasks, clipboard and more'
+arch=('any')
+url='https://github.com/drumpat01/codenotch-linux'
+license=('MIT')
+depends=('quickshell' 'libnotify' 'github-cli' 'qt6-declarative' 'cliphist' 'wl-clipboard')
+optdepends=('xdg-terminal-exec: open project folders in a terminal')
+source=()
+
+package() {
+    cd "$startdir"
+    install -d "$pkgdir/usr/share/buildnotch" "$pkgdir/usr/bin"
+    cp -r qml "$pkgdir/usr/share/buildnotch/qml"
+    chmod 755 "$pkgdir"/usr/share/buildnotch/qml/scripts/*.sh
+    install -Dm644 config.example.json "$pkgdir/usr/share/buildnotch/config.example.json"
+    install -Dm755 bin/buildnotch "$pkgdir/usr/bin/buildnotch"
+}

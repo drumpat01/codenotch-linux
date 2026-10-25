@@ -1,0 +1,93 @@
+{
+  "monitor": "",
+  "hoverOpen": true,
+  "shortNotch": false,
+  "reduceMotion": false,
+  "pomoStyle": "clean",
+  "focusMin": 25,
+  "shortMin": 5,
+  "longMin": 15,
+  "wallpaper": "",
+  "terminal": [
+    "xdg-terminal-exec"
+  ],
+  "editor": [
+    "nvim"
+  ],
+  "githubRefreshMinutes": 30,
+  "hideFullscreen": [
+    "google-chrome",
+    "chromium",
+    "Google-chrome",
+    "Chromium"
+  ],
+  "widgets": [
+    {
+      "id": "music",
+      "visible": true
+    },
+    {
+      "id": "pomodoro",
+      "visible": true
+    },
+    {
+      "id": "ai",
+      "visible": true
+    },
+    {
+      "id": "usage",
+      "visible": true
+    },
+    {
+      "id": "github",
+      "visible": true
+    },
+    {
+      "id": "projects",
+      "visible": true
+    },
+    {
+      "id": "quote",
+      "visible": true
+    },
+    {
+      "id": "apps",
+      "visible": true
+    },
+    {
+      "id": "note",
+      "visible": true
+    }
+  ],
+  "usage": {
+    "refreshMinutes": 5,
+    "providers": [
+      {
+        "id": "codex",
+        "name": "Codex",
+        "enabled": true,
+        "command": ""
+      },
+      {
+        "id": "claude",
+        "name": "Claude",
+        "enabled": true,
+        "command": ""
+      },
+      {
+        "id": "gemini",
+        "name": "Gemini",
+        "enabled": false,
+        "command": ""
+      },
+      {
+        "id": "cursor",
+        "name": "Cursor",
+        "enabled": false,
+        "command": ""
+      }
+    ]
+  },
+  "customApps": [],
+  "favorites": []
+}
