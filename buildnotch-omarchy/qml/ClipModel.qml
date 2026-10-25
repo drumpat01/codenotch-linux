@@ -3,7 +3,7 @@ import Quickshell
 import Quickshell.Io
 import "Lib.js" as Lib
 
-// Clipboard history from cliphist (the watcher `wl-paste --watch cliphist store` is part of Omarchy).
+// Clipboard history from cliphist (needs the watcher `wl-paste --watch cliphist store`; the launcher and install.sh start it).
 Item {
     id: c
     property bool active: false
@@ -34,7 +34,9 @@ Item {
         stdout: StdioCollector { id: so }
         stderr: StdioCollector { id: se }
         onExited: code => {
-            if (code !== 0) { c.error = "cliphist not available. Install cliphist and wl-clipboard."; return; }
+            if (code === 127) { c.error = "cliphist is not installed. Install cliphist and wl-clipboard."; return; }
+            if (code === 3) { c.error = "Clipboard watcher not running. Start it with: wl-paste --watch cliphist store"; return; }
+            if (code !== 0) { c.error = "cliphist failed (exit " + code + ")."; return; }
             c.error = "";
             var now = Date.now(), old = {};
             c.items.forEach(function (i) { old[i.id] = i.seen; });

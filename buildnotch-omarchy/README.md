@@ -28,10 +28,10 @@ Omarchy 3.x and 4.x configure Hyprland differently, and `--hypr` picks the right
 
 Without `--hypr` the installer only copies files; add the lines by hand. Then run `buildnotch` or log out and in.
 A package is available through `cd buildnotch-omarchy && makepkg -si` (PKGBUILD, builds from the repository's
-`main` branch). Uninstall with `./install.sh --uninstall`. Licenses of the bundled fonts, icons and the
+`main` branch). Uninstall with `./install.sh --uninstall` (removes the files; the autostart block, including its watcher line, and the packages stay until you remove them). Licenses of the bundled fonts, icons and the
 buildnotch.app artwork are in [NOTICE.md](NOTICE.md).
 
-The notch needs `hyprctl` (Hyprland) for global shortcuts, bar-aware placement and fullscreen hiding. Clipboard history needs the watcher `wl-paste --watch cliphist store`, which Omarchy already starts.
+The notch needs `hyprctl` (Hyprland) for global shortcuts, bar-aware placement and fullscreen hiding. Clipboard history needs `cliphist`, `wl-clipboard` and a watcher running `wl-paste --watch cliphist store`. `install.sh` installs the two packages if missing (sudo only then), starts the watcher right away if it is not running, and with `--hypr` adds it to your Hyprland autostart unless one is already configured. The `buildnotch` launcher also starts it if none is running. If the history says "Clipboard watcher not running", run that command once.
 
 ## Use
 

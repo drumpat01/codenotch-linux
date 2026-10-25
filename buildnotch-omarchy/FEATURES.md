@@ -57,7 +57,7 @@ there). `scripts/check.sh` runs the logic tests; the on-device test steps are in
 | 28 | **Favorite apps**: launch the apps you live in; add your own | `.desktop` picker plus free-form command | Done |
 | 29 | **Code playground**: language picker (JavaScript, TypeScript, Rust, Python, Plain text), line numbers, "Saved locally as you type", Copy, Clear | `PlaygroundDrawer.qml` | Done |
 | 30 | **Personal note**: word count, Today, Saved state | `NoteCard.qml` | Done |
-| 31 | **Clipboard history** (`WIN + V`, here `SUPER + ALT + V` because Omarchy uses SUPER+V for Universal paste): filters All / Text / Code / Images / Links, grid, copy, remove, focused preview, "12 sec ago" | `cliphist` + `wl-clipboard`; the clipboard watcher is the user's existing `wl-paste --watch cliphist store` (Omarchy ships it) | Adapted |
+| 31 | **Clipboard history** (`WIN + V`, here `SUPER + ALT + V` because Omarchy uses SUPER+V for Universal paste): filters All / Text / Code / Images / Links, grid, copy, remove, focused preview, "12 sec ago" | `cliphist` + `wl-clipboard`; the watcher `wl-paste --watch cliphist store` is started by the installer/launcher if not already running | Adapted |
 | 32 | **File tray**: drop files in, thumbnails, export or drag out, removing a tray copy never deletes the original | `DropArea` copies into `~/.local/share/buildnotch/tray`; drag-out and "Open folder" | Done |
 | 33 | **Edit layout**: widgets jiggle, lift while dragged, settle on release, reduced-motion respected | Card reorder by drag, jiggle animation, `reduceMotion` setting | Done |
 | 34 | **JSON formatting** (Developer tools, Format): pretty-print / minify, copy, error shows where parsing failed | `PlaygroundDrawer.qml`, `Lib.js` (line/column from the parser message) | Done |
